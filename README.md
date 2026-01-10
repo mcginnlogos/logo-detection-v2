@@ -37,7 +37,7 @@ Should the automatic setup fail, please [create a Supabase account](https://app.
 
 ### Configure Auth
 
-Follow [this guide](https://supabase.com/docs/guides/auth/social-login/auth-github) to set up an OAuth app with GitHub and configure Supabase to use it as an auth provider.
+Follow [this guide](https://supabase.com/docs/guides/auth/social-login/auth-google) to set up an OAuth app with Google and configure Supabase to use it as an auth provider.
 
 In your Supabase project, navigate to [auth > URL configuration](https://app.supabase.com/project/_/auth/url-configuration) and set your main production URL (e.g. https://your-deployment-url.vercel.app) as the site url.
 
