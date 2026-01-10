@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Footer from '@/components/ui/Footer';
-import Navbar from '@/components/ui/Navbar';
+import Sidebar from '@/components/ui/Sidebar/Sidebar';
+import SignInButton from '@/components/ui/SignInButton/SignInButton';
 import { Toaster } from '@/components/ui/Toasts/toaster';
 import { PropsWithChildren, Suspense } from 'react';
 import { getURL } from '@/utils/helpers';
@@ -29,14 +30,23 @@ export default async function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en">
       <body className="bg-black">
-        {/* Only show navbar for authenticated users */}
-        {user && <Navbar />}
-        <main
-          id="skip"
-          className={user ? "min-h-[calc(100dvh-4rem)] md:min-h[calc(100dvh-5rem)]" : "min-h-screen"}
-        >
-          {children}
-        </main>
+        {user ? (
+          // Authenticated layout with sidebar
+          <div className="flex">
+            <Sidebar user={user} />
+            <main className="flex-1 ml-16">
+              {children}
+            </main>
+          </div>
+        ) : (
+          // Unauthenticated layout with conditional sign-in button
+          <div>
+            <SignInButton />
+            <main className="min-h-screen">
+              {children}
+            </main>
+          </div>
+        )}
         <Footer />
         <Suspense>
           <Toaster />

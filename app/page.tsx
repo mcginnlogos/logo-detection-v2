@@ -6,7 +6,6 @@ import {
   getUser
 } from '@/utils/supabase/queries';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -23,16 +22,6 @@ export default async function HomePage() {
 
   return (
     <div className="bg-black min-h-screen">
-      {/* Header for non-authenticated users */}
-      <div className="flex justify-end p-6">
-        <Link
-          href="/signin"
-          className="inline-flex items-center px-6 py-2 text-sm font-medium text-zinc-200 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors duration-200"
-        >
-          Sign In
-        </Link>
-      </div>
-
       {/* Welcome Section */}
       <div className="max-w-6xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
