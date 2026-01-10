@@ -8,7 +8,7 @@ import {
 } from '@/utils/supabase/queries';
 
 export default async function Dashboard() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const [user, userDetails, subscription] = await Promise.all([
     getUser(supabase),
     getUserDetails(supabase),

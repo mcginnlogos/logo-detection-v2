@@ -8,7 +8,7 @@ import {
 import { redirect } from 'next/navigation';
 
 export default async function SubscriptionsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Check authentication first, before fetching any data
   const user = await getUser(supabase);
