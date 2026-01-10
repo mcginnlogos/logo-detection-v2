@@ -10,9 +10,29 @@ import {
 } from '@/components/ui/Toasts/toast';
 import { useToast } from '@/components/ui/Toasts/use-toast';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export function Toaster() {
+  const { toast, toasts } = useToast();
+  const [mounted, setMounted] = useState(false);
+  
+  // Only run on client side after hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <ToastProvider>
+        <ToastViewport />
+      </ToastProvider>
+    );
+  }
+
+  return <ClientToaster />;
+}
+
+function ClientToaster() {
   const { toast, toasts } = useToast();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -45,7 +65,7 @@ export function Toaster() {
       const redirectPath = `${pathname}?${newSearchParams.toString()}`;
       router.replace(redirectPath, { scroll: false });
     }
-  }, [searchParams]);
+  }, [searchParams, pathname, router, toast]);
 
   return (
     <ToastProvider>

@@ -20,7 +20,7 @@ type CheckoutResponse = {
 
 export async function checkoutWithStripe(
   price: Price,
-  redirectPath: string = '/dashboard'
+  redirectPath: string = '/subscriptions'
 ): Promise<CheckoutResponse> {
   try {
     // Get the user from Supabase auth

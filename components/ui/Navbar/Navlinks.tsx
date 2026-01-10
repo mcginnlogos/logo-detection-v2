@@ -14,6 +14,7 @@ interface NavlinksProps {
 
 export default function Navlinks({ user }: NavlinksProps) {
   const router = getRedirectMethod() === 'client' ? useRouter() : null;
+  const pathname = usePathname();
 
   return (
     <div className="relative flex flex-row justify-between py-4 align-center md:py-6">
@@ -22,29 +23,21 @@ export default function Navlinks({ user }: NavlinksProps) {
           <Logo />
         </Link>
         <nav className="ml-6 space-x-2 lg:block">
-          {user && (
-            <Link href="/dashboard" className={s.link}>
-              Dashboard
-            </Link>
-          )}
-          <Link href="/" className={s.link}>
+          <Link href="/dashboard" className={s.link}>
+            Dashboard
+          </Link>
+          <Link href="/subscriptions" className={s.link}>
             Pricing
           </Link>
         </nav>
       </div>
       <div className="flex justify-end space-x-8">
-        {user ? (
-          <form onSubmit={(e) => handleRequest(e, SignOut, router)}>
-            <input type="hidden" name="pathName" value={usePathname()} />
-            <button type="submit" className={s.link}>
-              Sign out
-            </button>
-          </form>
-        ) : (
-          <Link href="/signin" className={s.link}>
-            Sign In
-          </Link>
-        )}
+        <form onSubmit={(e) => handleRequest(e, SignOut, router)}>
+          <input type="hidden" name="pathName" value={pathname} />
+          <button type="submit" className={s.link}>
+            Sign out
+          </button>
+        </form>
       </div>
     </div>
   );
