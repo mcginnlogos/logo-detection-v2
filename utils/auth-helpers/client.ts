@@ -38,18 +38,6 @@ export async function signInWithOAuth(e: React.FormEvent<HTMLFormElement>) {
   // Use window.location.origin for client-side redirect URL
   const redirectURL = `${window.location.origin}/auth/callback`;
   
-  console.log('🔍 OAuth Debug:', {
-    provider,
-    redirectURL,
-    currentURL: window.location.href,
-    origin: window.location.origin,
-    env: {
-      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-      NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
-      NODE_ENV: process.env.NODE_ENV
-    }
-  });
-  
   await supabase.auth.signInWithOAuth({
     provider: provider,
     options: {
