@@ -13,9 +13,48 @@ Parameters:
     Default: 'logo-detection-file-storage'
 
 Resources:
-  # S3 Bucket for file storage
+  # Dead Letter Queue for failed messages (create first)
+  FileProcessingDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'file-processing-dlq-${EnvironmentName}'
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # SQS Queue for S3 object creation events
+  FileProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'file-processing-queue-${EnvironmentName}'
+      VisibilityTimeout: 300  # 5 minutes
+      MessageRetentionPeriod: 1209600  # 14 days
+      ReceiveMessageWaitTimeSeconds: 20  # Long polling
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt FileProcessingDLQ.Arn
+        maxReceiveCount: 3
+
+  # SQS Queue Policy to allow S3 to send messages (create before bucket)
+  FileProcessingQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref FileProcessingQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action:
+              - sqs:SendMessage
+            Resource: !GetAtt FileProcessingQueue.Arn
+            Condition:
+              ArnLike:
+                'aws:SourceArn': !Sub 'arn:aws:s3:::${FileStorageBucketName}-${EnvironmentName}-${AWS::AccountId}'
+
+  # S3 Bucket for file storage (with notifications)
   FileStorageBucket:
     Type: AWS::S3::Bucket
+    DependsOn: FileProcessingQueuePolicy
     Properties:
       BucketName: !Sub '${FileStorageBucketName}-${EnvironmentName}-${AWS::AccountId}'
       VersioningConfiguration:
@@ -49,6 +88,15 @@ Resources:
           - Id: DeleteOldVersions
             Status: Enabled
             NoncurrentVersionExpirationInDays: 30
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt FileProcessingQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: users/
 
   # CloudWatch Log Group for S3 events
   FileStorageLogGroup:
@@ -57,7 +105,7 @@ Resources:
       LogGroupName: !Sub '/aws/s3/${FileStorageBucketName}-${EnvironmentName}'
       RetentionInDays: 30
 
-  # IAM User for application access to S3
+  # IAM User for application access to S3 and SQS
   FileStorageUser:
     Type: AWS::IAM::User
     Properties:
@@ -90,6 +138,27 @@ Resources:
                 Action:
                   - s3:GetObject
                 Resource: !Sub '${FileStorageBucket.Arn}/users/*'
+        - PolicyName: SQSFileProcessingAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Allow receiving and deleting messages from the processing queue
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                Resource: 
+                  - !GetAtt FileProcessingQueue.Arn
+              # Allow reading DLQ for monitoring/debugging
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:GetQueueUrl
+                Resource: 
+                  - !GetAtt FileProcessingDLQ.Arn
 
   # Access Key for the IAM User
   FileStorageAccessKey:
@@ -134,6 +203,40 @@ Resources:
         - Name: StorageType
           Value: AllStorageTypes
 
+  # SQS DLQ Alarm
+  DLQMessagesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'SQS-DLQ-Messages-${EnvironmentName}'
+      AlarmDescription: 'Alert when messages appear in DLQ'
+      MetricName: ApproximateNumberOfVisibleMessages
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt FileProcessingDLQ.QueueName
+
+  # SQS Queue Depth Alarm
+  QueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'SQS-QueueDepth-${EnvironmentName}'
+      AlarmDescription: 'Alert when queue depth is high'
+      MetricName: ApproximateNumberOfVisibleMessages
+      Namespace: AWS/SQS
+      Statistic: Average
+      Period: 300  # 5 minutes
+      EvaluationPeriods: 2
+      Threshold: 100
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt FileProcessingQueue.QueueName
+
 Outputs:
   BucketName:
     Description: 'S3 bucket name for file storage'
@@ -152,6 +255,30 @@ Outputs:
     Value: !GetAtt FileStorageBucket.DomainName
     Export:
       Name: !Sub '${AWS::StackName}-BucketDomainName'
+
+  QueueUrl:
+    Description: 'SQS Queue URL for file processing'
+    Value: !Ref FileProcessingQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueUrl'
+
+  QueueArn:
+    Description: 'SQS Queue ARN'
+    Value: !GetAtt FileProcessingQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-QueueArn'
+
+  DLQUrl:
+    Description: 'Dead Letter Queue URL'
+    Value: !Ref FileProcessingDLQ
+    Export:
+      Name: !Sub '${AWS::StackName}-DLQUrl'
+
+  DLQArn:
+    Description: 'Dead Letter Queue ARN'
+    Value: !GetAtt FileProcessingDLQ.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DLQArn'
 
   AccessKeyId:
     Description: 'Access Key ID for S3 access'

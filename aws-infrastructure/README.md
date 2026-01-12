@@ -10,16 +10,21 @@ Creates the S3 infrastructure for file storage with user-based access control.
 
 **Resources Created:**
 - S3 bucket with versioning and lifecycle policies
-- IAM user with restricted S3 access (users/* prefix only)
+- SQS queue for processing S3 object creation events
+- Dead letter queue (DLQ) for failed message processing
+- S3 event notifications that send messages to SQS when objects are created
+- IAM user with restricted S3 and SQS access
 - Access keys for application authentication
-- CloudWatch alarms for monitoring
+- CloudWatch alarms for monitoring S3 and SQS
 - CORS configuration for web access
 
 **Security Features:**
 - Public access blocked on S3 bucket
 - IAM policies restrict access to user-specific prefixes
+- SQS queue policy allows only the S3 bucket to send messages
 - Versioning enabled for data protection
 - Lifecycle rules for cleanup
+- DLQ for handling failed message processing
 
 ### 2. Logo Detection Stack (`logo-detection-stack.yaml`)
 
@@ -73,6 +78,8 @@ AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=<AccessKeyId from stack output>
 AWS_SECRET_ACCESS_KEY=<SecretAccessKey from stack output>
 AWS_S3_BUCKET=<BucketName from stack output>
+AWS_SQS_QUEUE_URL=<QueueUrl from stack output>
+AWS_SQS_DLQ_URL=<DLQUrl from stack output>
 ```
 
 ### From Logo Detection Stack Outputs:
@@ -88,6 +95,10 @@ Both stacks include CloudWatch alarms:
 **S3 File Storage:**
 - Bucket size monitoring (alerts at 10GB)
 - Object count monitoring (alerts at 100k objects)
+
+**SQS Processing:**
+- Dead letter queue message alerts
+- Queue depth monitoring (alerts at 100 messages)
 
 **Logo Detection:**
 - Dead letter queue message alerts
