@@ -12,11 +12,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch all files without sorting (sorting will be done client-side)
+    // Fetch files excluding only deleted ones, filtered by user, ordered by creation date
     const { data: files, error } = await supabase
       .from('files')
       .select('*')
-      .order('created_at', { ascending: false }) as any; // Default order for consistency
+      .eq('user_id', user.id)     // Only user's files
+      .in('status', ['pending_upload', 'uploading', 'available', 'upload_failed', 'deleting'])  // Include active statuses
+      .order('created_at', { ascending: false }) as any;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
