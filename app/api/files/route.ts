@@ -74,8 +74,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Update status to deleting
-    const { error: statusError } = await supabase
-      .from('files')
+    const { error: statusError } = await (supabase
+      .from('files') as any)
       .update({ 
         status: 'deleting',
         updated_at: new Date().toISOString()
@@ -97,8 +97,8 @@ export async function DELETE(request: NextRequest) {
       .catch(async (s3Error) => {
         console.error('S3 deletion failed:', s3Error);
         // Update status to delete_failed
-        await supabase
-          .from('files')
+        await (supabase
+          .from('files') as any)
           .update({ 
             status: 'delete_failed', 
             error_message: s3Error.message,
