@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { deleteFileFromS3, validateUserAccess } from '@/utils/s3/operations';
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,23 +61,37 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // Delete from storage
-    const { error: storageError } = await supabase.storage
-      .from('user-files')
-      .remove([file.storage_path]);
-
-    if (storageError) {
-      console.error('Storage deletion error:', storageError);
+    // Validate required S3 fields
+    if (!file.s3_key || !file.s3_bucket) {
+      return NextResponse.json({ error: 'File storage information missing' }, { status: 500 });
     }
 
-    // Delete from database
+    // Validate user access to the S3 key
+    if (!validateUserAccess(user.id, file.s3_key)) {
+      return NextResponse.json({ error: 'Unauthorized access to file' }, { status: 403 });
+    }
+
+    // Delete from S3 first
+    try {
+      await deleteFileFromS3(file.s3_key);
+    } catch (s3Error) {
+      console.error('S3 deletion error:', s3Error);
+      return NextResponse.json({ 
+        error: 'Failed to delete file from storage' 
+      }, { status: 500 });
+    }
+
+    // Only delete from database if S3 deletion was successful
     const { error: dbError } = await supabase
       .from('files')
       .delete()
       .eq('id', fileId);
 
     if (dbError) {
-      return NextResponse.json({ error: dbError.message }, { status: 500 });
+      console.error('Database deletion error after successful S3 deletion:', dbError);
+      return NextResponse.json({ 
+        error: 'File deleted from storage but database cleanup failed' 
+      }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

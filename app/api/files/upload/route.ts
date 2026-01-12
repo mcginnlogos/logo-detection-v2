@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { getMaxFileSizeMB, getMaxFileSizeBytes, ALLOWED_FILE_TYPES } from '@/utils/file-config';
+import { uploadFileToS3 } from '@/utils/s3/operations';
 
 const MAX_FILE_SIZE = getMaxFileSizeBytes();
 const ALLOWED_TYPES = ALLOWED_FILE_TYPES;
@@ -51,24 +52,16 @@ export async function POST(request: NextRequest) {
         const fileExtension = file.name.split('.').pop();
         const uniqueFileName = `${timestamp}_${randomString}.${fileExtension}`;
         
-        // Create storage path with user ID prefix
-        const storagePath = `${user.id}/${uniqueFileName}`;
+        // Convert file to buffer
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-        // Upload to Supabase Storage
-        const { data: storageData, error: storageError } = await supabase.storage
-          .from('user-files')
-          .upload(storagePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (storageError) {
-          uploadResults.push({
-            name: file.name,
-            error: `Storage upload failed: ${storageError.message}`
-          });
-          continue;
-        }
+        // Upload to S3
+        const { key: s3Key, bucket: s3Bucket } = await uploadFileToS3(
+          user.id,
+          uniqueFileName,
+          fileBuffer,
+          file.type
+        );
 
         // Save file metadata to database
         const { data: dbData, error: dbError } = await supabase
@@ -79,16 +72,20 @@ export async function POST(request: NextRequest) {
             original_name: file.name,
             size: file.size,
             mime_type: file.type,
-            storage_path: storagePath
+            s3_bucket: s3Bucket,
+            s3_key: s3Key
           } as any)
           .select()
           .single();
 
         if (dbError) {
-          // If database insert fails, clean up storage
-          await supabase.storage
-            .from('user-files')
-            .remove([storagePath]);
+          // If database insert fails, clean up S3 file
+          try {
+            const { deleteFileFromS3 } = await import('@/utils/s3/operations');
+            await deleteFileFromS3(s3Key);
+          } catch (cleanupError) {
+            console.error('Failed to cleanup S3 file after DB error:', cleanupError);
+          }
           
           uploadResults.push({
             name: file.name,

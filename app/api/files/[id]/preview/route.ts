@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { generatePresignedUrl, validateUserAccess } from '@/utils/s3/operations';
 
 export async function GET(
   request: NextRequest,
@@ -27,18 +28,28 @@ export async function GET(
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // Get signed URL for the file
-    const { data: signedUrlData, error: urlError } = await supabase.storage
-      .from('user-files')
-      .createSignedUrl(file.storage_path, 3600); // 1 hour expiry
+    // Validate required S3 fields
+    if (!file.s3_key || !file.s3_bucket) {
+      return NextResponse.json({ error: 'File storage information missing' }, { status: 500 });
+    }
 
-    if (urlError || !signedUrlData) {
+    // Validate user access to the S3 key
+    if (!validateUserAccess(user.id, file.s3_key)) {
+      return NextResponse.json({ error: 'Unauthorized access to file' }, { status: 403 });
+    }
+
+    // Generate presigned URL for S3 file
+    let previewUrl: string;
+    try {
+      previewUrl = await generatePresignedUrl(file.s3_key, 3600); // 1 hour expiry
+    } catch (s3Error) {
+      console.error('S3 presigned URL error:', s3Error);
       return NextResponse.json({ error: 'Failed to generate preview URL' }, { status: 500 });
     }
 
     return NextResponse.json({ 
       file,
-      previewUrl: signedUrlData.signedUrl 
+      previewUrl 
     });
 
   } catch (error) {
