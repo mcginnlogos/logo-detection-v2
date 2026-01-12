@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS public.files (
     mime_type TEXT NOT NULL,
     s3_bucket TEXT NOT NULL,
     s3_key TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending_upload' CHECK (status IN ('pending_upload', 'uploading', 'available', 'upload_failed', 'deleting', 'deleted', 'delete_failed')),
+    error_message TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -37,3 +39,4 @@ CREATE INDEX files_created_at_idx ON public.files(created_at);
 CREATE INDEX files_name_idx ON public.files(name);
 CREATE INDEX files_s3_bucket_idx ON public.files(s3_bucket);
 CREATE INDEX files_s3_key_idx ON public.files(s3_key);
+CREATE INDEX files_status_idx ON public.files(status);

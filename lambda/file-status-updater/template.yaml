@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'S3 File Storage Infrastructure with User-based Access Control'
+Transform: AWS::Serverless-2016-10-31
+Description: S3 File Storage with Event Processing Pipeline
 
 Parameters:
   EnvironmentName:
@@ -11,9 +12,30 @@ Parameters:
     Type: String
     Description: S3 bucket name for file storage
     Default: 'logo-detection-file-storage'
+  
+  SupabaseUrl:
+    Type: String
+    Description: Supabase project URL
+    NoEcho: true
+
+  SupabaseServiceKey:
+    Type: String
+    Description: Supabase service role key
+    NoEcho: true
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs18.x
+    Environment:
+      Variables:
+        SUPABASE_URL: !Ref SupabaseUrl
+        SUPABASE_SERVICE_KEY: !Ref SupabaseServiceKey
+        ENVIRONMENT: !Ref EnvironmentName
 
 Resources:
-  # Dead Letter Queue for failed messages (create first)
+  # Dead Letter Queue for failed messages
   FileProcessingDLQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -32,26 +54,7 @@ Resources:
         deadLetterTargetArn: !GetAtt FileProcessingDLQ.Arn
         maxReceiveCount: 3
 
-  # SQS Queue Policy to allow S3 to send messages (create before bucket)
-  FileProcessingQueuePolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      Queues:
-        - !Ref FileProcessingQueue
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: s3.amazonaws.com
-            Action:
-              - sqs:SendMessage
-            Resource: !GetAtt FileProcessingQueue.Arn
-            Condition:
-              ArnLike:
-                'aws:SourceArn': !Sub 'arn:aws:s3:::${FileStorageBucketName}-${EnvironmentName}-${AWS::AccountId}'
-
-  # S3 Bucket for file storage (with notifications)
+  # S3 Bucket for file storage
   FileStorageBucket:
     Type: AWS::S3::Bucket
     DependsOn: FileProcessingQueuePolicy
@@ -97,13 +100,59 @@ Resources:
                 Rules:
                   - Name: prefix
                     Value: users/
+          - Event: s3:ObjectRemoved:*
+            Queue: !GetAtt FileProcessingQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: users/
 
-  # CloudWatch Log Group for S3 events
-  FileStorageLogGroup:
-    Type: AWS::Logs::LogGroup
+  # SQS Queue Policy to allow S3 to send messages
+  FileProcessingQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
     Properties:
-      LogGroupName: !Sub '/aws/s3/${FileStorageBucketName}-${EnvironmentName}'
-      RetentionInDays: 30
+      Queues:
+        - !Ref FileProcessingQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action:
+              - sqs:SendMessage
+            Resource: !GetAtt FileProcessingQueue.Arn
+            Condition:
+              ArnLike:
+                'aws:SourceArn': !Sub 'arn:aws:s3:::${FileStorageBucketName}-${EnvironmentName}-${AWS::AccountId}'
+
+  # Lambda function to process S3 events from SQS
+  FileStatusUpdaterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'file-status-updater-${EnvironmentName}'
+      CodeUri: src/
+      Handler: index.handler
+      Description: Updates file status in Supabase based on S3 events from SQS
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FileProcessingQueue.Arn
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt FileProcessingQueue.QueueName
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
 
   # IAM User for application access to S3 and SQS
   FileStorageUser:
@@ -237,6 +286,39 @@ Resources:
         - Name: QueueName
           Value: !GetAtt FileProcessingQueue.QueueName
 
+  # Lambda Error Alarm
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'FileStatus-Lambda-Errors-${EnvironmentName}'
+      AlarmDescription: 'Alert on Lambda function errors'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FileStatusUpdaterFunction
+
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'FileStatus-Lambda-Duration-${EnvironmentName}'
+      AlarmDescription: 'Alert on Lambda function high duration'
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10000  # 10 seconds
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FileStatusUpdaterFunction
+
 Outputs:
   BucketName:
     Description: 'S3 bucket name for file storage'
@@ -297,3 +379,15 @@ Outputs:
     Value: !Ref AWS::Region
     Export:
       Name: !Sub '${AWS::StackName}-Region'
+
+  FunctionArn:
+    Description: File Status Updater Lambda Function ARN
+    Value: !GetAtt FileStatusUpdaterFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-FunctionArn'
+  
+  FunctionName:
+    Description: File Status Updater Lambda Function Name
+    Value: !Ref FileStatusUpdaterFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-FunctionName'

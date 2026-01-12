@@ -52,18 +52,11 @@ export async function POST(request: NextRequest) {
         const fileExtension = file.name.split('.').pop();
         const uniqueFileName = `${timestamp}_${randomString}.${fileExtension}`;
         
-        // Convert file to buffer
-        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        // Get S3 bucket name from environment
+        const s3Bucket = process.env.AWS_S3_BUCKET!;
+        const s3Key = `users/${user.id}/${uniqueFileName}`;
 
-        // Upload to S3
-        const { key: s3Key, bucket: s3Bucket } = await uploadFileToS3(
-          user.id,
-          uniqueFileName,
-          fileBuffer,
-          file.type
-        );
-
-        // Save file metadata to database
+        // Save file metadata to database with pending_upload status
         const { data: dbData, error: dbError } = await supabase
           .from('files')
           .insert({
@@ -73,26 +66,51 @@ export async function POST(request: NextRequest) {
             size: file.size,
             mime_type: file.type,
             s3_bucket: s3Bucket,
-            s3_key: s3Key
+            s3_key: s3Key,
+            status: 'pending_upload'
           } as any)
           .select()
           .single();
 
         if (dbError) {
-          // If database insert fails, clean up S3 file
-          try {
-            const { deleteFileFromS3 } = await import('@/utils/s3/operations');
-            await deleteFileFromS3(s3Key);
-          } catch (cleanupError) {
-            console.error('Failed to cleanup S3 file after DB error:', cleanupError);
-          }
-          
           uploadResults.push({
             name: file.name,
             error: `Database save failed: ${dbError.message}`
           });
           continue;
         }
+
+        // Update status to uploading
+        const { error: statusError } = await supabase
+          .from('files')
+          .update({ status: 'uploading', updated_at: new Date().toISOString() })
+          .eq('id', dbData.id);
+
+        if (statusError) {
+          console.error('Failed to update status to uploading:', statusError);
+        }
+
+        // Convert file to buffer
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+        // Upload to S3 (don't await - let it happen async)
+        uploadFileToS3(user.id, uniqueFileName, fileBuffer, file.type)
+          .then(() => {
+            console.log(`S3 upload completed for file: ${uniqueFileName}`);
+            // Lambda will update status to 'available' via S3 event
+          })
+          .catch(async (s3Error) => {
+            console.error('S3 upload failed:', s3Error);
+            // Update status to upload_failed
+            await supabase
+              .from('files')
+              .update({ 
+                status: 'upload_failed', 
+                error_message: s3Error.message,
+                updated_at: new Date().toISOString() 
+              })
+              .eq('id', dbData.id);
+          });
 
         uploadResults.push({
           name: file.name,

@@ -51,6 +51,7 @@ export const createFile = async (supabase: Client, fileData: {
   mime_type: string;
   s3_bucket: string;
   s3_key: string;
+  status?: string;
 }) => {
   return supabase
     .from('files')

@@ -71,28 +71,39 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized access to file' }, { status: 403 });
     }
 
-    // Delete from S3 first
-    try {
-      await deleteFileFromS3(file.s3_key);
-    } catch (s3Error) {
-      console.error('S3 deletion error:', s3Error);
-      return NextResponse.json({ 
-        error: 'Failed to delete file from storage' 
-      }, { status: 500 });
-    }
-
-    // Only delete from database if S3 deletion was successful
-    const { error: dbError } = await supabase
+    // Update status to deleting
+    const { error: statusError } = await supabase
       .from('files')
-      .delete()
+      .update({ 
+        status: 'deleting',
+        updated_at: new Date().toISOString()
+      })
       .eq('id', fileId);
 
-    if (dbError) {
-      console.error('Database deletion error after successful S3 deletion:', dbError);
+    if (statusError) {
       return NextResponse.json({ 
-        error: 'File deleted from storage but database cleanup failed' 
+        error: `Failed to update file status: ${statusError.message}` 
       }, { status: 500 });
     }
+
+    // Delete from S3 (don't await - let it happen async)
+    deleteFileFromS3(file.s3_key)
+      .then(() => {
+        console.log(`S3 deletion completed for file: ${file.s3_key}`);
+        // Lambda will update status to 'deleted' via S3 event
+      })
+      .catch(async (s3Error) => {
+        console.error('S3 deletion failed:', s3Error);
+        // Update status to delete_failed
+        await supabase
+          .from('files')
+          .update({ 
+            status: 'delete_failed', 
+            error_message: s3Error.message,
+            updated_at: new Date().toISOString() 
+          })
+          .eq('id', fileId);
+      });
 
     return NextResponse.json({ success: true });
 
