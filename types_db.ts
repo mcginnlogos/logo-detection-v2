@@ -17,7 +17,10 @@ export interface Database {
           original_name: string
           size: number
           mime_type: string
-          storage_path: string
+          s3_bucket: string
+          s3_key: string
+          status: string
+          error_message: string | null
           created_at: string
           updated_at: string
         }
@@ -28,7 +31,10 @@ export interface Database {
           original_name: string
           size: number
           mime_type: string
-          storage_path: string
+          s3_bucket: string
+          s3_key: string
+          status?: string
+          error_message?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -39,7 +45,10 @@ export interface Database {
           original_name?: string
           size?: number
           mime_type?: string
-          storage_path?: string
+          s3_bucket?: string
+          s3_key?: string
+          status?: string
+          error_message?: string | null
           created_at?: string
           updated_at?: string
         }
