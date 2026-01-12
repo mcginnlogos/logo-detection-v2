@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
         const s3Key = `users/${user.id}/${uniqueFileName}`;
 
         // Save file metadata to database with pending_upload status
-        const { data: dbData, error: dbError } = await supabase
-          .from('files')
+        const { data: dbData, error: dbError } = await (supabase
+          .from('files') as any)
           .insert({
             user_id: user.id,
             name: uniqueFileName,
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             s3_bucket: s3Bucket,
             s3_key: s3Key,
             status: 'pending_upload'
-          } as any)
+          })
           .select()
           .single();
 
@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Update status to uploading
-        const { error: statusError } = await supabase
-          .from('files')
+        const { error: statusError } = await (supabase
+          .from('files') as any)
           .update({ status: 'uploading', updated_at: new Date().toISOString() })
           .eq('id', dbData.id);
 
@@ -102,8 +102,8 @@ export async function POST(request: NextRequest) {
           .catch(async (s3Error) => {
             console.error('S3 upload failed:', s3Error);
             // Update status to upload_failed
-            await supabase
-              .from('files')
+            await (supabase
+              .from('files') as any)
               .update({ 
                 status: 'upload_failed', 
                 error_message: s3Error.message,
