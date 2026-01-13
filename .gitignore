@@ -43,3 +43,9 @@ certificates
 
 #sam
 .aws-sam
+
+# ffmpeg layer - exclude large binaries and archives
+backend/layers/ffmpeg/*.tar.xz
+backend/layers/ffmpeg/ffmpeg-*-amd64-static/
+backend/layers/ffmpeg/opt/bin/ffmpeg
+backend/layers/ffmpeg/opt/bin/ffprobe
