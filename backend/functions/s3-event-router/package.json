@@ -1,0 +1,13 @@
+{
+  "name": "s3-event-router-function",
+  "version": "1.0.0",
+  "description": "Routes S3 events to appropriate Step Functions",
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-sfn": "^3.0.0"
+  },
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  }
+}

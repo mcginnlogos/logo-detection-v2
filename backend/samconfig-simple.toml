@@ -1,0 +1,28 @@
+# SAM configuration file for simple deployment
+
+version = 0.1
+
+[default]
+[default.global]
+[default.global.parameters]
+stack_name = "logo-detection-simple-prod"
+
+[default.build]
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy]
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+confirm_changeset = true
+resolve_s3 = true
+s3_prefix = "logo-detection-simple-prod"
+region = "us-east-1"
+profile = "logo-detection-prod"
+image_repositories = []
+parameter_overrides = [
+    "EnvironmentName=prod",
+    "SupabaseUrl=https://rttdivhngjwrhksfqjty.supabase.co",
+    "SupabaseServiceKey=sb_secret_9my8NarLNjpEd3bH0ly99A_SfKOwsWi"
+]

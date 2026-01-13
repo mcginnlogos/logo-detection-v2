@@ -34,3 +34,45 @@ export const ALLOWED_FILE_EXTENSIONS = [
   '.mkv',
   '.webm'
 ];
+
+export const IMAGE_TYPES = [
+  'image/png',
+  'image/jpg', 
+  'image/jpeg',
+  'image/webp'
+];
+
+export const VIDEO_TYPES = [
+  'video/mov',
+  'video/mp4',
+  'video/avi',
+  'video/x-msvideo',
+  'video/x-matroska',
+  'video/webm'
+];
+
+/**
+ * Determine if a file type is an image
+ */
+export const isImageType = (mimeType: string): boolean => {
+  return IMAGE_TYPES.includes(mimeType);
+};
+
+/**
+ * Determine if a file type is a video
+ */
+export const isVideoType = (mimeType: string): boolean => {
+  return VIDEO_TYPES.includes(mimeType);
+};
+
+/**
+ * Get the appropriate folder path for a file type
+ */
+export const getFileTypeFolder = (mimeType: string): string => {
+  if (isImageType(mimeType)) {
+    return 'images';
+  } else if (isVideoType(mimeType)) {
+    return 'videos';
+  }
+  return 'files'; // fallback for other types
+};

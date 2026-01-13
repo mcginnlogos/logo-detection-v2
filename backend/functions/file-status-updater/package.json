@@ -1,0 +1,13 @@
+{
+  "name": "file-status-updater-function",
+  "version": "1.0.0",
+  "description": "Updates file status in Supabase",
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  }
+}

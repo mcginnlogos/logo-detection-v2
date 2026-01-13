@@ -1,0 +1,229 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Simple Logo Detection Processing System - Step 1
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: 'dev'
+    Description: Environment name (dev, staging, prod)
+  
+  FileStorageBucketName:
+    Type: String
+    Description: S3 bucket name for file storage
+    Default: 'logo-detection-file-storage'
+    
+  SupabaseUrl:
+    Type: String
+    Description: Supabase project URL
+    Default: 'https://rttdivhngjwrhksfqjty.supabase.co'
+    
+  SupabaseServiceKey:
+    Type: String
+    Description: Supabase service role key
+    Default: 'sb_secret_9my8NarLNjpEd3bH0ly99A_SfKOwsWi'
+    NoEcho: true
+
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 256
+    Runtime: nodejs22.x
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref EnvironmentName
+        SUPABASE_URL: !Ref SupabaseUrl
+        SUPABASE_SERVICE_KEY: !Ref SupabaseServiceKey
+
+Resources:
+  # S3 Bucket for file storage (notifications will be added post-deployment)
+  FileStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${FileStorageBucketName}-${EnvironmentName}-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
+            AllowedOrigins: ['*']  # You should restrict this to your domain in production
+            ExposedHeaders: [ETag]
+            MaxAge: 3000
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  # S3 Event Router Lambda Function
+  S3EventRouterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 's3-event-router-${EnvironmentName}'
+      CodeUri: functions/s3-event-router/
+      Handler: index.handler
+      Description: Routes S3 events to appropriate Step Functions based on file path
+      Environment:
+        Variables:
+          IMAGE_PROCESSING_STATE_MACHINE_ARN: !Ref ImageProcessingStateMachine
+          VIDEO_UPLOAD_STATE_MACHINE_ARN: ""
+          FRAME_PROCESSING_STATE_MACHINE_ARN: ""
+          RESULT_PROCESSING_STATE_MACHINE_ARN: ""
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: '*'  # We'll restrict this when we create the Step Functions
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+    DependsOn:
+      - ImageProcessingStateMachine
+
+  # Lambda Permission for S3 to invoke the router function
+  S3EventRouterFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref S3EventRouterFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt FileStorageBucket.Arn
+
+  # File Status Updater Lambda Function
+  FileStatusUpdaterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'file-status-updater-${EnvironmentName}'
+      CodeUri: functions/file-status-updater/
+      Handler: index.handler
+      Description: Updates file status in Supabase database
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+  # Image Processing Step Function (handles both upload and delete)
+  ImageProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub 'image-processing-state-machine-${EnvironmentName}'
+      DefinitionUri: statemachine/image-processing-workflow.asl.json
+      DefinitionSubstitutions:
+        FileStatusUpdaterFunctionArn: !GetAtt FileStatusUpdaterFunction.Arn
+      Type: EXPRESS
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FileStatusUpdaterFunction
+
+
+  # CloudWatch Log Group for Step Functions
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/stepfunctions/simple-state-machine-${EnvironmentName}'
+      RetentionInDays: 14
+
+  # IAM User for S3 access
+  FileStorageUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub 'file-storage-user-${EnvironmentName}'
+      Policies:
+        - PolicyName: S3FileStorageAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Allow listing bucket contents (needed for some operations)
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt FileStorageBucket.Arn
+                Condition:
+                  StringLike:
+                    's3:prefix': ['users/*']
+              # Allow full access to user-specific prefixes
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:GetObjectVersion
+                  - s3:DeleteObjectVersion
+                Resource: !Sub '${FileStorageBucket.Arn}/users/*'
+              # Allow generating presigned URLs
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub '${FileStorageBucket.Arn}/users/*'
+
+  # Access Key for the IAM User
+  FileStorageAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref FileStorageUser
+
+Outputs:
+  FileStorageBucketName:
+    Description: 'S3 bucket name for file storage'
+    Value: !Ref FileStorageBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-FileStorageBucketName'
+
+  FileStorageBucketArn:
+    Description: 'S3 bucket ARN for file storage'
+    Value: !GetAtt FileStorageBucket.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-FileStorageBucketArn'
+
+  AccessKeyId:
+    Description: 'Access Key ID for S3 access'
+    Value: !Ref FileStorageAccessKey
+    Export:
+      Name: !Sub '${AWS::StackName}-AccessKeyId'
+
+  SecretAccessKey:
+    Description: 'Secret Access Key for S3 access'
+    Value: !GetAtt FileStorageAccessKey.SecretAccessKey
+    Export:
+      Name: !Sub '${AWS::StackName}-SecretAccessKey'
+
+  Region:
+    Description: 'AWS Region'
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub '${AWS::StackName}-Region'
+
+  FileStatusUpdaterFunctionArn:
+    Description: 'File Status Updater Function ARN'
+    Value: !GetAtt FileStatusUpdaterFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-FileStatusUpdaterFunctionArn'
+
+  ImageProcessingStateMachineArn:
+    Description: 'Image Processing State Machine ARN'
+    Value: !Ref ImageProcessingStateMachine
+    Export:
+      Name: !Sub '${AWS::StackName}-ImageProcessingStateMachineArn'
+
+  S3EventRouterFunctionArn:
+    Description: 'S3 Event Router Function ARN'
+    Value: !GetAtt S3EventRouterFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-S3EventRouterFunctionArn'

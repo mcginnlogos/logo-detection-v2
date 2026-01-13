@@ -6,12 +6,14 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3Client, S3_BUCKET } from './client';
+import { getFileTypeFolder } from '../file-config';
 
 /**
- * Generate S3 key with user ID prefix for RLS-like behavior
+ * Generate S3 key with user ID and file type folder prefix
  */
-export function generateS3Key(userId: string, filename: string): string {
-  return `users/${userId}/${filename}`;
+export function generateS3Key(userId: string, filename: string, mimeType: string): string {
+  const folder = getFileTypeFolder(mimeType);
+  return `users/${userId}/${folder}/${filename}`;
 }
 
 /**
@@ -23,7 +25,7 @@ export async function uploadFileToS3(
   fileBuffer: Buffer,
   contentType: string
 ): Promise<{ key: string; bucket: string }> {
-  const key = generateS3Key(userId, filename);
+  const key = generateS3Key(userId, filename, contentType);
   
   const command = new PutObjectCommand({
     Bucket: S3_BUCKET,

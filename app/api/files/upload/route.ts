@@ -54,7 +54,10 @@ export async function POST(request: NextRequest) {
         
         // Get S3 bucket name from environment
         const s3Bucket = process.env.AWS_S3_BUCKET!;
-        const s3Key = `users/${user.id}/${uniqueFileName}`;
+        
+        // Import the generateS3Key function to get the proper path
+        const { generateS3Key } = await import('@/utils/s3/operations');
+        const s3Key = generateS3Key(user.id, uniqueFileName, file.type);
 
         // Save file metadata to database with pending_upload status
         const { data: dbData, error: dbError } = await (supabase
