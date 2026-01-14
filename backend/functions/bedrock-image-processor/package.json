@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-data-automation-runtime": "^3.600.0",
+    "@aws-sdk/client-sfn": "^3.600.0",
     "@supabase/supabase-js": "^2.0.0"
   },
   "keywords": [

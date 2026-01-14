@@ -45,22 +45,28 @@
         {
           "Variable": "$.routeType",
           "StringEquals": "IMAGE_UPLOAD",
-          "Next": "EnqueueProcessingJob"
+          "Next": "CreateJobRecord"
         }
       ],
       "Default": "Success"
     },
     
-    "EnqueueProcessingJob": {
+    "CreateJobRecord": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::sqs:sendMessage",
+      "Resource": "${JobStatusUpdaterFunctionArn}",
       "Parameters": {
-        "QueueUrl": "${ImageProcessingQueueUrl}",
-        "MessageBody.$": "States.JsonToString($)"
+        "action": "create",
+        "status": "processing",
+        "bucket.$": "$.bucket",
+        "s3Key.$": "$.s3Key",
+        "userId.$": "$.userId",
+        "filename.$": "$.filename",
+        "fileSize.$": "$.fileSize",
+        "fileId.$": "$.fileId"
       },
       "Retry": [
         {
-          "ErrorEquals": ["States.ALL"],
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
           "IntervalSeconds": 2,
           "MaxAttempts": 3,
           "BackoffRate": 2.0
@@ -73,16 +79,84 @@
           "ResultPath": "$.error"
         }
       ],
-      "Next": "WaitingForProcessing"
+      "Next": "EnqueueProcessingJob"
     },
     
-    "WaitingForProcessing": {
-      "Type": "Pass",
-      "Result": {
-        "status": "waiting",
-        "message": "Job enqueued, waiting for processing completion"
+    "EnqueueProcessingJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+      "Parameters": {
+        "QueueUrl": "${ImageProcessingQueueUrl}",
+        "MessageBody": {
+          "bucket.$": "$.bucket",
+          "s3Key.$": "$.s3Key",
+          "userId.$": "$.userId",
+          "filename.$": "$.filename",
+          "fileSize.$": "$.fileSize",
+          "fileId.$": "$.fileId",
+          "jobId.$": "$.jobId",
+          "taskToken.$": "$$.Task.Token"
+        }
       },
-      "End": true
+      "TimeoutSeconds": 120,
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "Next": "MarkJobAsFailed",
+          "ResultPath": "$.error"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "MarkJobAsFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "CompleteJob"
+    },
+    
+    "CompleteJob": {
+      "Type": "Task",
+      "Resource": "${JobStatusUpdaterFunctionArn}",
+      "Parameters": {
+        "action": "update",
+        "jobId.$": "$.jobId",
+        "status": "completed"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleError",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "Success"
+    },
+    
+    "MarkJobAsFailed": {
+      "Type": "Task",
+      "Resource": "${JobStatusUpdaterFunctionArn}",
+      "Parameters": {
+        "action": "update",
+        "jobId.$": "$.jobId",
+        "status": "failed"
+      },
+      "Next": "HandleError"
     },
     
     "Success": {

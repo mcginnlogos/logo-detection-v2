@@ -169,7 +169,6 @@ CREATE TABLE IF NOT EXISTS public.processing_jobs (
     processing_type TEXT NOT NULL,
     status processing_job_status NOT NULL DEFAULT 'pending',
     input_s3_uri TEXT NOT NULL,
-    output_s3_uri TEXT,
     frame_index INTEGER,
     frame_timestamp DECIMAL,
     error_message TEXT,

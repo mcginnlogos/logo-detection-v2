@@ -132,6 +132,24 @@ Resources:
                 - logs:PutLogEvents
               Resource: '*'
 
+  # Job Status Updater Lambda Function
+  JobStatusUpdaterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'job-status-updater-${EnvironmentName}'
+      CodeUri: functions/job-status-updater/
+      Handler: index.handler
+      Description: Creates and updates job records in Supabase database
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
   # Bedrock Image Processor Lambda Function
   BedrockImageProcessorFunction:
     Type: AWS::Serverless::Function
@@ -140,7 +158,7 @@ Resources:
       CodeUri: functions/bedrock-image-processor/
       Handler: index.handler
       Description: Processes images using Bedrock Data Automation and stores results
-      Timeout: 900  # 15 minutes
+      Timeout: 10  # 10 seconds
       Environment:
         Variables:
           IMAGE_PROCESSING_QUEUE_URL: !Ref ImageProcessingQueue
@@ -174,6 +192,11 @@ Resources:
               Resource: !GetAtt ImageProcessingQueue.Arn
             - Effect: Allow
               Action:
+                - states:SendTaskSuccess
+                - states:SendTaskFailure
+              Resource: '*'
+            - Effect: Allow
+              Action:
                 - logs:CreateLogGroup
                 - logs:CreateLogStream
                 - logs:PutLogEvents
@@ -191,11 +214,11 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub 'image-processing-queue-${EnvironmentName}'
-      VisibilityTimeout: 900  # 15 minutes (must be >= Lambda timeout)
+      VisibilityTimeout: 15  # 15 seconds (must be >= Lambda timeout)
       MessageRetentionPeriod: 1209600  # 14 days
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ImageProcessingDLQ.Arn
-        maxReceiveCount: 15
+        maxReceiveCount: 5
 
   # Image Processing Step Function (handles both upload and delete)
   ImageProcessingStateMachine:
@@ -205,12 +228,15 @@ Resources:
       DefinitionUri: statemachine/image-processing-workflow.asl.json
       DefinitionSubstitutions:
         FileStatusUpdaterFunctionArn: !GetAtt FileStatusUpdaterFunction.Arn
+        JobStatusUpdaterFunctionArn: !GetAtt JobStatusUpdaterFunction.Arn
         ImageProcessingQueueUrl: !Ref ImageProcessingQueue
         BedrockImageProcessorFunctionArn: !GetAtt BedrockImageProcessorFunction.Arn
       Type: STANDARD
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref FileStatusUpdaterFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref JobStatusUpdaterFunction
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
@@ -307,6 +333,12 @@ Outputs:
     Value: !GetAtt FileStatusUpdaterFunction.Arn
     Export:
       Name: !Sub '${AWS::StackName}-FileStatusUpdaterFunctionArn'
+
+  JobStatusUpdaterFunctionArn:
+    Description: 'Job Status Updater Function ARN'
+    Value: !GetAtt JobStatusUpdaterFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-JobStatusUpdaterFunctionArn'
 
   ImageProcessingStateMachineArn:
     Description: 'Image Processing State Machine ARN'
