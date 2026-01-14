@@ -99,14 +99,6 @@
         }
       },
       "TimeoutSeconds": 120,
-      "Retry": [
-        {
-          "ErrorEquals": ["States.ALL"],
-          "IntervalSeconds": 2,
-          "MaxAttempts": 3,
-          "BackoffRate": 2.0
-        }
-      ],
       "Catch": [
         {
           "ErrorEquals": ["States.Timeout"],
@@ -154,7 +146,8 @@
       "Parameters": {
         "action": "update",
         "jobId.$": "$.jobId",
-        "status": "failed"
+        "status": "failed",
+        "errorMessage.$": "States.Format('Processing failed or timed out after 2 minutes. Error: {}', $.error)"
       },
       "Next": "HandleError"
     },

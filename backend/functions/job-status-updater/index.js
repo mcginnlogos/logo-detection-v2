@@ -8,7 +8,7 @@ const supabase = createClient(
 export const handler = async (event) => {
   console.log('Job Status Updater received event:', JSON.stringify(event, null, 2));
   
-  const { jobId, status, action, bucket, s3Key, userId, filename, fileSize, fileId } = event;
+  const { jobId, status, action, bucket, s3Key, userId, filename, fileSize, fileId, errorMessage } = event;
   
   try {
     // If action is 'create', create a new job record
@@ -63,6 +63,11 @@ export const handler = async (event) => {
       // Add completed_at timestamp if status is completed or failed
       if (status === 'completed' || status === 'failed') {
         updateData.completed_at = new Date().toISOString();
+      }
+      
+      // Add error_message if provided
+      if (errorMessage) {
+        updateData.error_message = errorMessage;
       }
       
       const { data: updatedJob, error: updateError } = await supabase

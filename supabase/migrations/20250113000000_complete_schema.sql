@@ -250,10 +250,11 @@ CREATE OR REPLACE FUNCTION calculate_job_duration()
 RETURNS TRIGGER AS $$
 BEGIN
     -- Calculate duration when job is completed (only for jobs table)
-    IF (NEW.status IN ('completed', 'failed') AND OLD.status != NEW.status AND NEW.started_at IS NOT NULL) THEN
+    -- Jobs table doesn't have started_at, so we use created_at as the start time
+    IF (NEW.status IN ('completed', 'failed') AND OLD.status != NEW.status AND NEW.created_at IS NOT NULL AND NEW.completed_at IS NOT NULL) THEN
         NEW.metadata = COALESCE(NEW.metadata, '{}'::jsonb) || 
                       jsonb_build_object('processing_duration_seconds', 
-                                       EXTRACT(EPOCH FROM (NEW.completed_at - NEW.started_at)));
+                                       EXTRACT(EPOCH FROM (NEW.completed_at - NEW.created_at)));
     END IF;
     RETURN NEW;
 END;
