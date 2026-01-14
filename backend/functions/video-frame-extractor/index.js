@@ -77,7 +77,8 @@ export const handler = async (event) => {
       bucket: bucket,
       userId: userId,
       fileId: fileId,
-      videoFilename: filename
+      videoFilename: filename,
+      s3Key: s3Key, // Include original video s3Key for job creation
     };
     
   } catch (error) {

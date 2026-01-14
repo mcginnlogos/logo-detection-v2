@@ -1,5 +1,4 @@
 import { 
-  PutObjectCommand, 
   DeleteObjectCommand, 
   GetObjectCommand,
   HeadObjectCommand
@@ -14,34 +13,6 @@ import { getFileTypeFolder } from '../file-config';
 export function generateS3Key(userId: string, filename: string, mimeType: string): string {
   const folder = getFileTypeFolder(mimeType);
   return `users/${userId}/${folder}/${filename}`;
-}
-
-/**
- * Upload file to S3
- */
-export async function uploadFileToS3(
-  userId: string,
-  filename: string,
-  fileBuffer: Buffer,
-  contentType: string
-): Promise<{ key: string; bucket: string }> {
-  const key = generateS3Key(userId, filename, contentType);
-  
-  const command = new PutObjectCommand({
-    Bucket: S3_BUCKET,
-    Key: key,
-    Body: fileBuffer,
-    ContentType: contentType,
-    Metadata: {
-      userId: userId,
-      originalName: filename,
-      uploadedAt: new Date().toISOString(),
-    },
-  });
-
-  await s3Client.send(command);
-  
-  return { key, bucket: S3_BUCKET };
 }
 
 /**
@@ -69,26 +40,6 @@ export async function generatePresignedUrl(
   });
 
   return await getSignedUrl(s3Client, command, { expiresIn });
-}
-
-/**
- * Check if file exists in S3
- */
-export async function fileExistsInS3(key: string): Promise<boolean> {
-  try {
-    const command = new HeadObjectCommand({
-      Bucket: S3_BUCKET,
-      Key: key,
-    });
-    
-    await s3Client.send(command);
-    return true;
-  } catch (error: any) {
-    if (error.name === 'NotFound') {
-      return false;
-    }
-    throw error;
-  }
 }
 
 /**

@@ -31,35 +31,6 @@
           "ResultPath": "$.error"
         }
       ],
-      "Next": "ExtractFrames"
-    },
-    
-    "ExtractFrames": {
-      "Type": "Task",
-      "Resource": "${VideoFrameExtractorFunctionArn}",
-      "Parameters": {
-        "bucket.$": "$.bucket",
-        "s3Key.$": "$.s3Key",
-        "userId.$": "$.userId",
-        "filename.$": "$.filename",
-        "fileId.$": "$.fileId",
-        "frameRate": 1
-      },
-      "Retry": [
-        {
-          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
-          "IntervalSeconds": 2,
-          "MaxAttempts": 3,
-          "BackoffRate": 2.0
-        }
-      ],
-      "Catch": [
-        {
-          "ErrorEquals": ["States.ALL"],
-          "Next": "HandleError",
-          "ResultPath": "$.error"
-        }
-      ],
       "Next": "CreateJobRecord"
     },
     
@@ -72,8 +43,8 @@
         "bucket.$": "$.bucket",
         "s3Key.$": "$.s3Key",
         "userId.$": "$.userId",
-        "filename.$": "$.videoFilename",
-        "fileSize": 0,
+        "filename.$": "$.filename",
+        "fileSize.$": "$.fileSize",
         "fileId.$": "$.fileId"
       },
       "Retry": [
@@ -91,19 +62,51 @@
           "ResultPath": "$.error"
         }
       ],
+      "ResultPath": "$.jobResult",
+      "Next": "ExtractFrames"
+    },
+    
+    "ExtractFrames": {
+      "Type": "Task",
+      "Resource": "${VideoFrameExtractorFunctionArn}",
+      "Parameters": {
+        "bucket.$": "$.bucket",
+        "s3Key.$": "$.s3Key",
+        "userId.$": "$.userId",
+        "filename.$": "$.filename",
+        "fileId.$": "$.fileId",
+        "jobId.$": "$.jobResult.jobId",
+        "frameRate": 1
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "MarkJobAsFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "ResultPath": "$.extractionResult",
       "Next": "ProcessFramesInParallel"
     },
     
     "ProcessFramesInParallel": {
       "Type": "Map",
-      "ItemsPath": "$.frames",
+      "ItemsPath": "$.extractionResult.frames",
       "MaxConcurrency": 10,
       "Parameters": {
         "frame.$": "$$.Map.Item.Value",
         "bucket.$": "$.bucket",
         "userId.$": "$.userId",
         "fileId.$": "$.fileId",
-        "jobId.$": "$.jobId"
+        "jobId.$": "$.jobResult.jobId"
       },
       "Iterator": {
         "StartAt": "EnqueueFrameProcessing",
@@ -165,7 +168,7 @@
       "Resource": "${JobStatusUpdaterFunctionArn}",
       "Parameters": {
         "action": "update",
-        "jobId.$": "$.jobId",
+        "jobId.$": "$.jobResult.jobId",
         "status": "completed"
       },
       "Retry": [
@@ -191,7 +194,7 @@
       "Resource": "${JobStatusUpdaterFunctionArn}",
       "Parameters": {
         "action": "update",
-        "jobId.$": "$.jobId",
+        "jobId.$": "$.jobResult.jobId",
         "status": "failed",
         "errorMessage.$": "States.Format('Video processing failed. Error: {}', $.error)"
       },

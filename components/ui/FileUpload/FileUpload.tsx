@@ -13,15 +13,18 @@ interface UploadResult {
   success?: boolean;
   error?: string;
   file?: any;
+  progress?: number;
 }
 
 const MAX_FILE_SIZE = getMaxFileSizeBytes();
 const ALLOWED_TYPES = ALLOWED_FILE_TYPES;
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
 
 export default function FileUpload({ onUploadComplete }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const maxSizeMB = getMaxFileSizeMB();
@@ -47,33 +50,116 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
     return { validFiles, errors };
   };
 
+  const uploadFileMultipart = async (file: File): Promise<UploadResult> => {
+    try {
+      // Step 1: Initiate multipart upload
+      const initiateResponse = await fetch('/api/files/initiate-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        }),
+      });
+
+      if (!initiateResponse.ok) {
+        const error = await initiateResponse.json();
+        throw new Error(error.error || 'Failed to initiate upload');
+      }
+
+      const { fileId, uploadId, key, presignedUrls } = await initiateResponse.json();
+
+      // Step 2: Upload chunks in parallel
+      const chunks = Math.ceil(file.size / CHUNK_SIZE);
+      const uploadPromises: Promise<{ PartNumber: number; ETag: string }>[] = [];
+
+      for (let i = 0; i < chunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        const partNumber = i + 1;
+
+        const uploadPromise = fetch(presignedUrls[i], {
+          method: 'PUT',
+          body: chunk,
+        }).then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to upload part ${partNumber}`);
+          }
+          const etag = response.headers.get('ETag');
+          if (!etag) {
+            throw new Error(`No ETag returned for part ${partNumber}`);
+          }
+          
+          // Update progress
+          setUploadProgress((prev) => Math.min(prev + (100 / chunks), 95));
+          
+          return {
+            PartNumber: partNumber,
+            ETag: etag.replace(/"/g, ''), // Remove quotes from ETag
+          };
+        });
+
+        uploadPromises.push(uploadPromise);
+      }
+
+      const parts = await Promise.all(uploadPromises);
+
+      // Step 3: Complete multipart upload
+      const completeResponse = await fetch('/api/files/complete-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileId,
+          uploadId,
+          key,
+          parts,
+        }),
+      });
+
+      if (!completeResponse.ok) {
+        const error = await completeResponse.json();
+        throw new Error(error.error || 'Failed to complete upload');
+      }
+
+      setUploadProgress(100);
+
+      return {
+        name: file.name,
+        success: true,
+      };
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      return {
+        name: file.name,
+        error: error instanceof Error ? error.message : 'Upload failed',
+      };
+    }
+  };
+
   const uploadFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     setIsUploading(true);
     setUploadResults([]);
-
-    const formData = new FormData();
-    files.forEach(file => {
-      formData.append('files', file);
-    });
+    setUploadProgress(0);
 
     try {
-      const response = await fetch('/api/files/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
+      // Upload files sequentially to avoid overwhelming the browser
+      const results: UploadResult[] = [];
       
-      if (data.results) {
-        setUploadResults(data.results);
-        
-        // Check if any uploads were successful
-        const hasSuccessfulUploads = data.results.some((result: UploadResult) => result.success);
-        if (hasSuccessfulUploads && onUploadComplete) {
-          onUploadComplete();
-        }
+      for (const file of files) {
+        const result = await uploadFileMultipart(file);
+        results.push(result);
+        setUploadResults([...results]);
+      }
+
+      // Check if any uploads were successful
+      const hasSuccessfulUploads = results.some((result) => result.success);
+      if (hasSuccessfulUploads && onUploadComplete) {
+        onUploadComplete();
       }
     } catch (error) {
       console.error('Upload error:', error);
@@ -83,6 +169,7 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
       }]);
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -185,6 +272,19 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
               Supports PNG, JPG, JPEG, WEBP, MOV, MP4, AVI, MKV, WEBM (max {maxSizeMB}MB each)
             </p>
+            {isUploading && uploadProgress > 0 && (
+              <div className="mt-3">
+                <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 text-center">
+                  {Math.round(uploadProgress)}%
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
