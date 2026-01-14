@@ -31,7 +31,58 @@
           "ResultPath": "$.error"
         }
       ],
-      "Next": "Success"
+      "Next": "CheckEventType"
+    },
+    
+    "CheckEventType": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.routeType",
+          "StringEquals": "IMAGE_DELETE",
+          "Next": "Success"
+        },
+        {
+          "Variable": "$.routeType",
+          "StringEquals": "IMAGE_UPLOAD",
+          "Next": "EnqueueProcessingJob"
+        }
+      ],
+      "Default": "Success"
+    },
+    
+    "EnqueueProcessingJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage",
+      "Parameters": {
+        "QueueUrl": "${ImageProcessingQueueUrl}",
+        "MessageBody.$": "States.JsonToString($)"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleError",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "WaitingForProcessing"
+    },
+    
+    "WaitingForProcessing": {
+      "Type": "Pass",
+      "Result": {
+        "status": "waiting",
+        "message": "Job enqueued, waiting for processing completion"
+      },
+      "End": true
     },
     
     "Success": {

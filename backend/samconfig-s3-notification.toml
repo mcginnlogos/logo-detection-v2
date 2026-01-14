@@ -1,0 +1,12 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "s3-notification-config-prod"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-n2e02zpul8ps"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = [
+    "EnvironmentName=prod",
+    "S3BucketName=logo-detection-file-storage-prod-942370948350",
+    "LambdaFunctionArn=arn:aws:lambda:us-east-1:942370948350:function:s3-event-router-prod"
+]

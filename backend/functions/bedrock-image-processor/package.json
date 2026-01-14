@@ -1,0 +1,22 @@
+{
+  "name": "bedrock-image-processor",
+  "version": "1.0.0",
+  "description": "Lambda function to process images using Bedrock Data Automation",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-data-automation-runtime": "^3.600.0",
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "bedrock",
+    "image-processing"
+  ],
+  "author": "",
+  "license": "ISC"
+}

@@ -8,7 +8,7 @@ const supabase = createClient(
 export const handler = async (event) => {
   console.log('File Status Updater received event:', JSON.stringify(event, null, 2));
   
-  const { bucket, s3Key, userId, filename, fileSize, routeType } = event;
+  const { bucket, s3Key, userId, filename, fileSize, routeType, eventName, eventTime } = event;
   
   try {
     // Check if this is a delete event
@@ -34,23 +34,20 @@ export const handler = async (event) => {
       if (!updatedFile) {
         console.warn(`No file found to delete for s3Key: ${s3Key}, userId: ${userId}`);
         return {
+          ...event,  // Pass through all input fields
           statusCode: 200,
-          message: 'No file found to delete (may have already been deleted)',
-          userId: userId,
-          s3Key: s3Key
+          message: 'No file found to delete (may have already been deleted)'
         };
       }
       
       console.log(`Updated file to deleted status: ${updatedFile.id}`);
       
       return {
+        ...event,  // Pass through all input fields
         statusCode: 200,
         message: 'File status updated to deleted successfully',
         fileId: updatedFile.id,
-        status: updatedFile.status,
-        userId: userId,
-        filename: filename,
-        s3Key: s3Key
+        status: updatedFile.status
       };
     }
     
@@ -119,13 +116,11 @@ export const handler = async (event) => {
     }
     
     return {
+      ...event,  // Pass through all input fields including routeType
       statusCode: 200,
       message: 'File status updated successfully',
       fileId: fileRecord.id,
-      status: fileRecord.status,
-      userId: userId,
-      filename: filename,
-      s3Key: s3Key
+      status: fileRecord.status
     };
     
   } catch (error) {

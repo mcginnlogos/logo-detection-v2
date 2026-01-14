@@ -16,12 +16,12 @@ Parameters:
   SupabaseUrl:
     Type: String
     Description: Supabase project URL
-    Default: 'https://rttdivhngjwrhksfqjty.supabase.co'
+    Default: 'https://rttdivhngjwrhksfqjty.supabase.co' # TODO REMOVE 
     
   SupabaseServiceKey:
     Type: String
     Description: Supabase service role key
-    Default: 'sb_secret_9my8NarLNjpEd3bH0ly99A_SfKOwsWi'
+    Default: 'sb_secret_9my8NarLNjpEd3bH0ly99A_SfKOwsWi' # TODO REMOVE
     NoEcho: true
 
 Globals:
@@ -36,6 +36,28 @@ Globals:
         SUPABASE_SERVICE_KEY: !Ref SupabaseServiceKey
 
 Resources:
+  # Bedrock Data Automation Project (SYNC type for synchronous API)
+  BedrockDataAutomationProject:
+    Type: AWS::Bedrock::DataAutomationProject
+    Properties:
+      ProjectName: !Sub 'logo-detection-sync-${EnvironmentName}'
+      ProjectDescription: 'Synchronous logo detection project for image processing'
+      ProjectType: 'SYNC'
+      StandardOutputConfiguration:
+        Image:
+          Extraction:
+            Category:
+              State: 'ENABLED'
+              Types:
+                - 'LOGOS'
+            BoundingBox:
+              State: 'ENABLED'
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Project
+          Value: logo-detection
+
   # S3 Bucket for file storage (notifications will be added post-deployment)
   FileStorageBucket:
     Type: AWS::S3::Bucket
@@ -52,7 +74,7 @@ Resources:
         CorsRules:
           - AllowedHeaders: ['*']
             AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
-            AllowedOrigins: ['*']  # You should restrict this to your domain in production
+            AllowedOrigins: ['*']  # TODO You should restrict this to your domain in production
             ExposedHeaders: [ETag]
             MaxAge: 3000
       LifecycleConfiguration:
@@ -92,15 +114,6 @@ Resources:
     DependsOn:
       - ImageProcessingStateMachine
 
-  # Lambda Permission for S3 to invoke the router function
-  S3EventRouterFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref S3EventRouterFunction
-      Action: lambda:InvokeFunction
-      Principal: s3.amazonaws.com
-      SourceArn: !GetAtt FileStorageBucket.Arn
-
   # File Status Updater Lambda Function
   FileStatusUpdaterFunction:
     Type: AWS::Serverless::Function
@@ -119,6 +132,71 @@ Resources:
                 - logs:PutLogEvents
               Resource: '*'
 
+  # Bedrock Image Processor Lambda Function
+  BedrockImageProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'bedrock-image-processor-${EnvironmentName}'
+      CodeUri: functions/bedrock-image-processor/
+      Handler: index.handler
+      Description: Processes images using Bedrock Data Automation and stores results
+      Timeout: 900  # 15 minutes
+      Environment:
+        Variables:
+          IMAGE_PROCESSING_QUEUE_URL: !Ref ImageProcessingQueue
+          BEDROCK_PROJECT_ARN: !GetAtt BedrockDataAutomationProject.ProjectArn
+          BEDROCK_PROFILE_ARN: 'arn:aws:bedrock:us-east-1:942370948350:data-automation-profile/us.data-automation-v1'
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ImageProcessingQueue.Arn
+            BatchSize: 1  # Process one message at a time
+            MaximumBatchingWindowInSeconds: 0
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeDataAutomation
+                - bedrock-data-automation-runtime:InvokeDataAutomation
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: 
+                - !Sub '${FileStorageBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt ImageProcessingQueue.Arn
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+  # Dead Letter Queue for failed image processing jobs
+  ImageProcessingDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'image-processing-dlq-${EnvironmentName}'
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  # SQS Queue for image processing jobs
+  ImageProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub 'image-processing-queue-${EnvironmentName}'
+      VisibilityTimeout: 900  # 15 minutes (must be >= Lambda timeout)
+      MessageRetentionPeriod: 1209600  # 14 days
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ImageProcessingDLQ.Arn
+        maxReceiveCount: 15
+
   # Image Processing Step Function (handles both upload and delete)
   ImageProcessingStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -127,10 +205,24 @@ Resources:
       DefinitionUri: statemachine/image-processing-workflow.asl.json
       DefinitionSubstitutions:
         FileStatusUpdaterFunctionArn: !GetAtt FileStatusUpdaterFunction.Arn
-      Type: EXPRESS
+        ImageProcessingQueueUrl: !Ref ImageProcessingQueue
+        BedrockImageProcessorFunctionArn: !GetAtt BedrockImageProcessorFunction.Arn
+      Type: STANDARD
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref FileStatusUpdaterFunction
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt ImageProcessingQueue.Arn
+            - Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+                - states:SendTaskFailure
+              Resource: '*'
 
 
   # CloudWatch Log Group for Step Functions
@@ -227,3 +319,33 @@ Outputs:
     Value: !GetAtt S3EventRouterFunction.Arn
     Export:
       Name: !Sub '${AWS::StackName}-S3EventRouterFunctionArn'
+
+  BedrockImageProcessorFunctionArn:
+    Description: 'Bedrock Image Processor Function ARN'
+    Value: !GetAtt BedrockImageProcessorFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-BedrockImageProcessorFunctionArn'
+
+  ImageProcessingQueueUrl:
+    Description: 'Image Processing SQS Queue URL'
+    Value: !Ref ImageProcessingQueue
+    Export:
+      Name: !Sub '${AWS::StackName}-ImageProcessingQueueUrl'
+
+  ImageProcessingQueueArn:
+    Description: 'Image Processing SQS Queue ARN'
+    Value: !GetAtt ImageProcessingQueue.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ImageProcessingQueueArn'
+
+  ImageProcessingDLQUrl:
+    Description: 'Image Processing Dead Letter Queue URL'
+    Value: !Ref ImageProcessingDLQ
+    Export:
+      Name: !Sub '${AWS::StackName}-ImageProcessingDLQUrl'
+
+  ImageProcessingDLQArn:
+    Description: 'Image Processing Dead Letter Queue ARN'
+    Value: !GetAtt ImageProcessingDLQ.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ImageProcessingDLQArn'
