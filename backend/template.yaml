@@ -95,7 +95,7 @@ Resources:
       Environment:
         Variables:
           IMAGE_PROCESSING_STATE_MACHINE_ARN: !Ref ImageProcessingStateMachine
-          VIDEO_UPLOAD_STATE_MACHINE_ARN: ""
+          VIDEO_UPLOAD_STATE_MACHINE_ARN: !Ref VideoProcessingStateMachine
           FRAME_PROCESSING_STATE_MACHINE_ARN: ""
           RESULT_PROCESSING_STATE_MACHINE_ARN: ""
       Policies:
@@ -104,7 +104,9 @@ Resources:
             - Effect: Allow
               Action:
                 - states:StartExecution
-              Resource: '*'  # We'll restrict this when we create the Step Functions
+              Resource: 
+                - !Ref ImageProcessingStateMachine
+                - !Ref VideoProcessingStateMachine
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
@@ -113,6 +115,7 @@ Resources:
               Resource: '*'
     DependsOn:
       - ImageProcessingStateMachine
+      - VideoProcessingStateMachine
 
   # File Status Updater Lambda Function
   FileStatusUpdaterFunction:
@@ -150,6 +153,42 @@ Resources:
                 - logs:PutLogEvents
               Resource: '*'
 
+  # FFmpeg Lambda Layer from Serverless Application Repository
+  FFmpegLambdaLayer:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:145266761615:applications/ffmpeg-lambda-layer
+        SemanticVersion: 1.0.0
+
+  # Video Frame Extractor Lambda Function
+  VideoFrameExtractorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'video-frame-extractor-${EnvironmentName}'
+      CodeUri: functions/video-frame-extractor/
+      Handler: index.handler
+      Description: Extracts frames from video files using ffmpeg
+      Timeout: 300  # 5 minutes for video processing
+      MemorySize: 3008  # Max memory for better performance
+      Layers:
+        - !GetAtt FFmpegLambdaLayer.Outputs.LayerVersion
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: 
+                - !Sub '${FileStorageBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
   # Bedrock Image Processor Lambda Function
   BedrockImageProcessorFunction:
     Type: AWS::Serverless::Function
@@ -164,6 +203,7 @@ Resources:
           IMAGE_PROCESSING_QUEUE_URL: !Ref ImageProcessingQueue
           BEDROCK_PROJECT_ARN: !GetAtt BedrockDataAutomationProject.ProjectArn
           BEDROCK_PROFILE_ARN: 'arn:aws:bedrock:us-east-1:942370948350:data-automation-profile/us.data-automation-v1'
+          FORCE_FAILURE: 'false'  # Set to 'true' to simulate failures for testing
       Events:
         SQSEvent:
           Type: SQS
@@ -250,6 +290,37 @@ Resources:
                 - states:SendTaskFailure
               Resource: '*'
 
+  # Video Processing Step Function
+  VideoProcessingStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub 'video-processing-state-machine-${EnvironmentName}'
+      DefinitionUri: statemachine/video-processing-workflow.asl.json
+      DefinitionSubstitutions:
+        FileStatusUpdaterFunctionArn: !GetAtt FileStatusUpdaterFunction.Arn
+        JobStatusUpdaterFunctionArn: !GetAtt JobStatusUpdaterFunction.Arn
+        VideoFrameExtractorFunctionArn: !GetAtt VideoFrameExtractorFunction.Arn
+        ImageProcessingQueueUrl: !Ref ImageProcessingQueue
+      Type: STANDARD
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FileStatusUpdaterFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref JobStatusUpdaterFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref VideoFrameExtractorFunction
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt ImageProcessingQueue.Arn
+            - Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+                - states:SendTaskFailure
+              Resource: '*'
 
   # CloudWatch Log Group for Step Functions
   StateMachineLogGroup:
@@ -381,3 +452,15 @@ Outputs:
     Value: !GetAtt ImageProcessingDLQ.Arn
     Export:
       Name: !Sub '${AWS::StackName}-ImageProcessingDLQArn'
+
+  VideoFrameExtractorFunctionArn:
+    Description: 'Video Frame Extractor Function ARN'
+    Value: !GetAtt VideoFrameExtractorFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-VideoFrameExtractorFunctionArn'
+
+  VideoProcessingStateMachineArn:
+    Description: 'Video Processing State Machine ARN'
+    Value: !Ref VideoProcessingStateMachine
+    Export:
+      Name: !Sub '${AWS::StackName}-VideoProcessingStateMachineArn'

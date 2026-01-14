@@ -1,0 +1,219 @@
+{
+  "Comment": "Video Processing Workflow - Extract frames and process each with Bedrock",
+  "StartAt": "UpdateFileStatus",
+  "States": {
+    "UpdateFileStatus": {
+      "Type": "Task",
+      "Resource": "${FileStatusUpdaterFunctionArn}",
+      "Parameters": {
+        "bucket.$": "$.bucket",
+        "s3Key.$": "$.s3Key",
+        "userId.$": "$.userId",
+        "filename.$": "$.filename",
+        "fileSize.$": "$.fileSize",
+        "etag.$": "$.etag",
+        "eventName.$": "$.eventName",
+        "eventTime.$": "$.eventTime",
+        "routeType.$": "$.routeType"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleError",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "ExtractFrames"
+    },
+    
+    "ExtractFrames": {
+      "Type": "Task",
+      "Resource": "${VideoFrameExtractorFunctionArn}",
+      "Parameters": {
+        "bucket.$": "$.bucket",
+        "s3Key.$": "$.s3Key",
+        "userId.$": "$.userId",
+        "filename.$": "$.filename",
+        "fileId.$": "$.fileId",
+        "frameRate": 1
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleError",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "CreateJobRecord"
+    },
+    
+    "CreateJobRecord": {
+      "Type": "Task",
+      "Resource": "${JobStatusUpdaterFunctionArn}",
+      "Parameters": {
+        "action": "create",
+        "status": "processing",
+        "bucket.$": "$.bucket",
+        "s3Key.$": "$.s3Key",
+        "userId.$": "$.userId",
+        "filename.$": "$.videoFilename",
+        "fileSize": 0,
+        "fileId.$": "$.fileId"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleError",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "ProcessFramesInParallel"
+    },
+    
+    "ProcessFramesInParallel": {
+      "Type": "Map",
+      "ItemsPath": "$.frames",
+      "MaxConcurrency": 10,
+      "Parameters": {
+        "frame.$": "$$.Map.Item.Value",
+        "bucket.$": "$.bucket",
+        "userId.$": "$.userId",
+        "fileId.$": "$.fileId",
+        "jobId.$": "$.jobId"
+      },
+      "Iterator": {
+        "StartAt": "EnqueueFrameProcessing",
+        "States": {
+          "EnqueueFrameProcessing": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+            "Parameters": {
+              "QueueUrl": "${ImageProcessingQueueUrl}",
+              "MessageBody": {
+                "bucket.$": "$.bucket",
+                "s3Key.$": "$.frame.s3Key",
+                "userId.$": "$.userId",
+                "filename.$": "$.frame.filename",
+                "fileSize": 0,
+                "fileId.$": "$.fileId",
+                "jobId.$": "$.jobId",
+                "frameNumber.$": "$.frame.frameNumber",
+                "frameTimestamp.$": "$.frame.timestamp",
+                "taskToken.$": "$$.Task.Token"
+              }
+            },
+            "TimeoutSeconds": 120,
+            "Catch": [
+              {
+                "ErrorEquals": ["States.Timeout"],
+                "Next": "FrameProcessingFailed",
+                "ResultPath": "$.error"
+              },
+              {
+                "ErrorEquals": ["States.ALL"],
+                "Next": "FrameProcessingFailed",
+                "ResultPath": "$.error"
+              }
+            ],
+            "End": true
+          },
+          
+          "FrameProcessingFailed": {
+            "Type": "Fail",
+            "Error": "FrameProcessingError",
+            "Cause": "Frame processing failed or timed out"
+          }
+        }
+      },
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "MarkJobAsFailed",
+          "ResultPath": "$.error"
+        }
+      ],
+      "ResultPath": "$.frameResults",
+      "Next": "CompleteJob"
+    },
+    
+    "CompleteJob": {
+      "Type": "Task",
+      "Resource": "${JobStatusUpdaterFunctionArn}",
+      "Parameters": {
+        "action": "update",
+        "jobId.$": "$.jobId",
+        "status": "completed"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleError",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "Success"
+    },
+    
+    "MarkJobAsFailed": {
+      "Type": "Task",
+      "Resource": "${JobStatusUpdaterFunctionArn}",
+      "Parameters": {
+        "action": "update",
+        "jobId.$": "$.jobId",
+        "status": "failed",
+        "errorMessage.$": "States.Format('Video processing failed. Error: {}', $.error)"
+      },
+      "Next": "HandleError"
+    },
+    
+    "Success": {
+      "Type": "Pass",
+      "Result": {
+        "status": "completed",
+        "message": "Video processing completed successfully"
+      },
+      "End": true
+    },
+    
+    "HandleError": {
+      "Type": "Pass",
+      "Result": {
+        "status": "failed",
+        "message": "Video processing failed"
+      },
+      "End": true
+    }
+  }
+}

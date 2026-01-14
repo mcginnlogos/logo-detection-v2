@@ -36,9 +36,12 @@ export const handler = async (event) => {
 };
 
 async function processImageJob(jobData) {
-  const { bucket, s3Key, userId, filename, fileId, fileSize, jobId, taskToken } = jobData;
+  const { bucket, s3Key, userId, filename, fileId, fileSize, jobId, taskToken, frameNumber, frameTimestamp } = jobData;
   
   console.log(`Processing image job for file: ${filename}, user: ${userId}, jobId: ${jobId}`);
+  if (frameNumber) {
+    console.log(`Processing video frame ${frameNumber} at timestamp ${frameTimestamp}s`);
+  }
   
   if (!jobId) {
     const error = new Error('jobId is required in the message');
@@ -58,17 +61,25 @@ async function processImageJob(jobData) {
     const inputS3Uri = `s3://${bucket}/${s3Key}`;
     
     // 1. Create processing job record with status processing
+    const processingJobData = {
+      job_id: jobId,
+      file_id: fileId,
+      user_id: userId,
+      processing_type: 'logo_detection',
+      status: 'processing',
+      input_s3_uri: inputS3Uri,
+      started_at: new Date().toISOString()
+    };
+    
+    // Add frame metadata if this is a video frame
+    if (frameNumber !== undefined) {
+      processingJobData.frame_index = frameNumber;
+      processingJobData.frame_timestamp = frameTimestamp;
+    }
+    
     const { data: newProcessingJob, error: processingJobError } = await supabase
       .from('processing_jobs')
-      .insert({
-        job_id: jobId,
-        file_id: fileId,
-        user_id: userId,
-        processing_type: 'logo_detection',
-        status: 'processing',
-        input_s3_uri: inputS3Uri,
-        started_at: new Date().toISOString()
-      })
+      .insert(processingJobData)
       .select()
       .single();
     
