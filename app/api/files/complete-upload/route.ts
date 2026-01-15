@@ -42,23 +42,6 @@ export async function POST(request: NextRequest) {
       // Complete the multipart upload
       await completeMultipartUpload(key, uploadId, parts);
 
-      // Update file status to 'available' since upload is complete
-      const { error: updateError } = await (supabase
-        .from('files') as any)
-        .update({ 
-          status: 'available',
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', fileId);
-
-      if (updateError) {
-        console.error('Failed to update file status:', updateError);
-        return NextResponse.json(
-          { error: `Failed to update file status: ${JSON.stringify(updateError)}` },
-          { status: 500 }
-        );
-      }
-
       return NextResponse.json({
         success: true,
         fileId,
