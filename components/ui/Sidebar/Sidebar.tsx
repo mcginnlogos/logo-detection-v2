@@ -6,8 +6,7 @@ import { useState } from 'react';
 import { SignOut } from '@/utils/auth-helpers/server';
 import { handleRequest } from '@/utils/auth-helpers/client';
 import { getRedirectMethod } from '@/utils/auth-helpers/settings';
-import { 
-  LayoutDashboard, 
+import {  
   CreditCard, 
   LogOut,
   Scan,
@@ -26,7 +25,7 @@ export default function Sidebar({ user }: SidebarProps) {
   const menuItems = [
     {
       href: '/assets',
-      icon: LayoutDashboard,
+      icon: Scan,
       label: 'Assets'
     }
   ];
@@ -35,7 +34,7 @@ export default function Sidebar({ user }: SidebarProps) {
     {
       href: '/subscriptions',
       icon: CreditCard,
-      label: 'Pricing'
+      label: 'Subscription'
     }
   ];
 
