@@ -426,4 +426,4 @@ GRANT ALL ON public.processing_job_results TO service_role;
 -- ============================================================================
 
 DROP PUBLICATION IF EXISTS supabase_realtime;
-CREATE PUBLICATION supabase_realtime FOR TABLE products, prices;
+CREATE PUBLICATION supabase_realtime FOR TABLE products, prices, jobs;
