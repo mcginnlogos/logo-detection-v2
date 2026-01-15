@@ -28,7 +28,10 @@ export default function Sidebar({ user }: SidebarProps) {
       href: '/assets',
       icon: LayoutDashboard,
       label: 'Assets'
-    },
+    }
+  ];
+
+  const bottomMenuItems = [
     {
       href: '/subscriptions',
       icon: CreditCard,
@@ -99,6 +102,31 @@ export default function Sidebar({ user }: SidebarProps) {
         {/* Bottom menu items */}
         <div>
           <nav className="space-y-2 px-3">
+            {bottomMenuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center rounded-lg transition-all duration-200 h-11 ${
+                    isExpanded ? 'px-3' : 'p-3 w-11'
+                  } ${
+                    isActive 
+                      ? 'bg-sidebar-accent text-sidebar-primary glow-primary' 
+                      : 'text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+                  }`}
+                >
+                  <div className="w-5 flex justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className={`ml-3 whitespace-nowrap font-medium overflow-hidden transition-all duration-300 ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
             {/* Sign out button */}
             <form onSubmit={(e) => handleRequest(e, SignOut, router)}>
               <input type="hidden" name="pathName" value={pathname} />
