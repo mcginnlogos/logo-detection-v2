@@ -38,30 +38,30 @@ export default function Sidebar({ user }: SidebarProps) {
 
   return (
     <div 
-      className={`fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 z-50 ${
+      className={`fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 z-50 overflow-hidden ${
         isExpanded ? 'w-64' : 'w-16'
       }`}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
     >
-      <div className="flex flex-col h-full py-6">
+      <div className="flex flex-col h-full py-6 w-64">
         {/* Logo */}
-        <div className="px-3 mb-8">
-          <div className={`flex items-center gap-3 ${!isExpanded && 'justify-center'}`}>
-            <div className="relative">
+        <div className="mb-8 px-3">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-shrink-0 w-9 flex justify-center">
               <div className="p-2 rounded-xl gradient-accent">
                 <Scan className="w-5 h-5 text-primary-foreground" />
               </div>
               <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-primary animate-float" />
             </div>
-            {isExpanded && (
-              <div>
+            <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
+              <div className="whitespace-nowrap">
                 <h1 className="text-lg font-bold text-sidebar-foreground tracking-tight">
                   Logo<span className="text-gradient">Detect</span>
                 </h1>
                 <p className="text-[10px] text-muted-foreground">AI-Powered Analysis</p>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -76,20 +76,20 @@ export default function Sidebar({ user }: SidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
-                    !isExpanded ? 'justify-center' : ''
+                  className={`flex items-center rounded-lg transition-all duration-200 h-11 ${
+                    isExpanded ? 'px-3' : 'p-3 w-11'
                   } ${
                     isActive 
                       ? 'bg-sidebar-accent text-sidebar-primary glow-primary' 
                       : 'text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
                   }`}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {isExpanded && (
-                    <span className="ml-3 whitespace-nowrap font-medium">
-                      {item.label}
-                    </span>
-                  )}
+                  <div className="w-5 flex justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className={`ml-3 whitespace-nowrap font-medium overflow-hidden transition-all duration-300 ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}
@@ -104,16 +104,16 @@ export default function Sidebar({ user }: SidebarProps) {
               <input type="hidden" name="pathName" value={pathname} />
               <button 
                 type="submit"
-                className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 ${
-                  !isExpanded ? 'justify-center' : ''
+                className={`flex items-center rounded-lg transition-all duration-200 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 h-11 ${
+                  isExpanded ? 'w-full px-3' : 'p-3 w-11'
                 }`}
               >
-                <LogOut className="w-5 h-5 flex-shrink-0" />
-                {isExpanded && (
-                  <span className="ml-3 whitespace-nowrap font-medium">
-                    Sign out
-                  </span>
-                )}
+                <div className="w-5 flex justify-center flex-shrink-0">
+                  <LogOut className="w-5 h-5" />
+                </div>
+                <span className={`ml-3 whitespace-nowrap font-medium overflow-hidden transition-all duration-300 ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
+                  Sign out
+                </span>
               </button>
             </form>
           </nav>
