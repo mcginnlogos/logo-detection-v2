@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LogIn } from 'lucide-react';
 
 export default function SignInButton() {
   const pathname = usePathname();
@@ -15,8 +16,9 @@ export default function SignInButton() {
     <div className="flex justify-end p-6 absolute top-0 right-0 z-10">
       <Link
         href="/signin"
-        className="inline-flex items-center px-6 py-2 text-sm font-medium text-zinc-200 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors duration-200"
+        className="inline-flex items-center gap-2 px-6 py-2 text-sm font-medium text-foreground bg-card/50 hover:bg-card border border-border hover:border-primary/50 rounded-lg transition-all duration-200 backdrop-blur-sm hover:glow-primary"
       >
+        <LogIn className="w-4 h-4" />
         Sign In
       </Link>
     </div>

@@ -10,6 +10,7 @@ import { User } from '@supabase/supabase-js';
 import cn from 'classnames';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 
 type Subscription = Tables<'subscriptions'>;
 type Product = Tables<'products'>;
@@ -85,10 +86,10 @@ export default function Pricing({ user, products, subscription }: Props) {
     return (
       <div>
         <div className="sm:flex sm:flex-col sm:align-center"></div>
-        <p className="text-4xl font-extrabold text-white sm:text-center sm:text-6xl">
+        <p className="text-4xl font-extrabold text-foreground sm:text-center sm:text-6xl">
           No subscription pricing plans found. Create them in your{' '}
           <a
-            className="text-pink-500 underline"
+            className="text-primary underline"
             href="https://dashboard.stripe.com/products"
             rel="noopener noreferrer"
             target="_blank"
@@ -104,22 +105,22 @@ export default function Pricing({ user, products, subscription }: Props) {
     return (
       <div>
         <div className="sm:flex sm:flex-col sm:align-center">
-          <h1 className="text-4xl font-extrabold text-white sm:text-center sm:text-6xl">
+          <h1 className="text-4xl font-extrabold text-foreground sm:text-center sm:text-6xl">
             Pricing Plans
           </h1>
-          <p className="max-w-2xl m-auto mt-5 text-xl text-zinc-200 sm:text-center sm:text-2xl">
+          <p className="max-w-2xl m-auto mt-5 text-xl text-muted-foreground sm:text-center sm:text-2xl">
             Choose the perfect plan for your logo detection needs.
           </p>
-          <div className="relative self-center mt-6 bg-zinc-900 rounded-lg p-0.5 flex sm:mt-8 border border-zinc-800">
+          <div className="relative self-center mt-6 bg-secondary rounded-lg p-0.5 flex sm:mt-8 border border-border">
           {intervals.includes('month') && (
             <button
               onClick={() => setBillingInterval('month')}
               type="button"
               className={`${
                 billingInterval === 'month'
-                  ? 'relative w-1/2 bg-zinc-700 border-zinc-800 shadow-sm text-white'
-                  : 'ml-0.5 relative w-1/2 border border-transparent text-zinc-400'
-              } rounded-md m-1 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-opacity-50 focus:z-10 sm:w-auto sm:px-8`}
+                  ? 'relative w-1/2 bg-sidebar-accent border-border shadow-sm text-foreground'
+                  : 'ml-0.5 relative w-1/2 border border-transparent text-muted-foreground'
+              } rounded-md m-1 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 focus:z-10 sm:w-auto sm:px-8 transition-all`}
             >
               Monthly billing
             </button>
@@ -130,9 +131,9 @@ export default function Pricing({ user, products, subscription }: Props) {
               type="button"
               className={`${
                 billingInterval === 'year'
-                  ? 'relative w-1/2 bg-zinc-700 border-zinc-800 shadow-sm text-white'
-                  : 'ml-0.5 relative w-1/2 border border-transparent text-zinc-400'
-              } rounded-md m-1 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-opacity-50 focus:z-10 sm:w-auto sm:px-8`}
+                  ? 'relative w-1/2 bg-sidebar-accent border-border shadow-sm text-foreground'
+                  : 'ml-0.5 relative w-1/2 border border-transparent text-muted-foreground'
+              } rounded-md m-1 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 focus:z-10 sm:w-auto sm:px-8 transition-all`}
             >
               Yearly billing
             </button>
@@ -150,31 +151,33 @@ export default function Pricing({ user, products, subscription }: Props) {
               currency: price.currency!,
               minimumFractionDigits: 0
             }).format((price?.unit_amount || 0) / 100);
+            const isCurrentPlan = subscription
+              ? product.name === subscription?.prices?.products?.name
+              : product.name === 'Freelancer';
             return (
               <div
                 key={product.id}
                 className={cn(
-                  'flex flex-col rounded-lg shadow-sm divide-y divide-zinc-600 bg-zinc-900',
+                  'flex flex-col rounded-xl shadow-sm divide-y divide-border bg-card/50 backdrop-blur-sm border transition-all duration-300',
                   {
-                    'border border-pink-500': subscription
-                      ? product.name === subscription?.prices?.products?.name
-                      : product.name === 'Freelancer'
+                    'border-primary glow-primary': isCurrentPlan,
+                    'border-border hover:border-primary/50 hover:glow-primary': !isCurrentPlan
                   },
-                  'flex-1', // This makes the flex item grow to fill the space
-                  'basis-1/3', // Assuming you want each card to take up roughly a third of the container's width
-                  'max-w-xs' // Sets a maximum width to the cards to prevent them from getting too large
+                  'flex-1',
+                  'basis-1/3',
+                  'max-w-xs'
                 )}
               >
                 <div className="p-6">
-                  <h2 className="text-2xl font-semibold leading-6 text-white">
+                  <h2 className="text-2xl font-semibold leading-6 text-foreground">
                     {product.name}
                   </h2>
-                  <p className="mt-4 text-zinc-300">{product.description}</p>
+                  <p className="mt-4 text-muted-foreground">{product.description}</p>
                   <p className="mt-8">
-                    <span className="text-5xl font-extrabold white">
+                    <span className="text-5xl font-extrabold text-foreground">
                       {priceString}
                     </span>
-                    <span className="text-base font-medium text-zinc-100">
+                    <span className="text-base font-medium text-muted-foreground">
                       /{billingInterval}
                     </span>
                   </p>
@@ -183,7 +186,7 @@ export default function Pricing({ user, products, subscription }: Props) {
                     type="button"
                     loading={priceIdLoading === price.id}
                     onClick={() => handleStripeCheckout(price)}
-                    className="block w-full py-2 mt-8 text-sm font-semibold text-center text-white rounded-md hover:bg-zinc-900"
+                    className="block w-full py-2 mt-8 text-sm font-semibold text-center rounded-md transition-all"
                   >
                     {subscription ? 'Manage' : 'Subscribe'}
                   </Button>

@@ -9,8 +9,9 @@ import { getRedirectMethod } from '@/utils/auth-helpers/settings';
 import { 
   LayoutDashboard, 
   CreditCard, 
-  FileText, 
-  LogOut 
+  LogOut,
+  Scan,
+  Sparkles
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,23 +36,35 @@ export default function Sidebar({ user }: SidebarProps) {
     }
   ];
 
-  const bottomItems = [
-    {
-      href: '/files',
-      icon: FileText,
-      label: 'Files'
-    }
-  ];
-
   return (
     <div 
-      className={`fixed left-0 top-0 h-full bg-zinc-900 border-r border-zinc-800 transition-all duration-300 z-50 ${
+      className={`fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 z-50 ${
         isExpanded ? 'w-64' : 'w-16'
       }`}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
     >
       <div className="flex flex-col h-full py-6">
+        {/* Logo */}
+        <div className="px-3 mb-8">
+          <div className={`flex items-center gap-3 ${!isExpanded && 'justify-center'}`}>
+            <div className="relative">
+              <div className="p-2 rounded-xl gradient-accent">
+                <Scan className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-primary animate-float" />
+            </div>
+            {isExpanded && (
+              <div>
+                <h1 className="text-lg font-bold text-sidebar-foreground tracking-tight">
+                  Logo<span className="text-gradient">Detect</span>
+                </h1>
+                <p className="text-[10px] text-muted-foreground">AI-Powered Analysis</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Top menu items */}
         <div className="flex-1">
           <nav className="space-y-2 px-3">
@@ -63,17 +76,17 @@ export default function Sidebar({ user }: SidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center px-3 py-3 rounded-lg transition-colors duration-200 ${
+                  className={`flex items-center px-3 py-3 rounded-lg transition-all duration-200 ${
                     !isExpanded ? 'justify-center' : ''
                   } ${
                     isActive 
-                      ? 'bg-zinc-800 text-white' 
-                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                      ? 'bg-sidebar-accent text-sidebar-primary glow-primary' 
+                      : 'text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
                   }`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   {isExpanded && (
-                    <span className="ml-3 whitespace-nowrap">
+                    <span className="ml-3 whitespace-nowrap font-medium">
                       {item.label}
                     </span>
                   )}
@@ -86,44 +99,18 @@ export default function Sidebar({ user }: SidebarProps) {
         {/* Bottom menu items */}
         <div>
           <nav className="space-y-2 px-3">
-            {bottomItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center px-3 py-3 rounded-lg transition-colors duration-200 ${
-                    !isExpanded ? 'justify-center' : ''
-                  } ${
-                    isActive 
-                      ? 'bg-zinc-800 text-white' 
-                      : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                  }`}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {isExpanded && (
-                    <span className="ml-3 whitespace-nowrap">
-                      {item.label}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-            
             {/* Sign out button */}
             <form onSubmit={(e) => handleRequest(e, SignOut, router)}>
               <input type="hidden" name="pathName" value={pathname} />
               <button 
                 type="submit"
-                className={`w-full flex items-center px-3 py-3 rounded-lg transition-colors duration-200 text-zinc-400 hover:text-white hover:bg-zinc-800 ${
+                className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 ${
                   !isExpanded ? 'justify-center' : ''
                 }`}
               >
                 <LogOut className="w-5 h-5 flex-shrink-0" />
                 {isExpanded && (
-                  <span className="ml-3 whitespace-nowrap">
+                  <span className="ml-3 whitespace-nowrap font-medium">
                     Sign out
                   </span>
                 )}

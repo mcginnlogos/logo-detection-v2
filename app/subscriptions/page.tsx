@@ -24,7 +24,7 @@ export default async function SubscriptionsPage() {
   ]);
 
   return (
-    <div className="bg-black min-h-screen">
+    <div className="bg-background min-h-screen">
       <div className="max-w-6xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <Pricing
           user={user}
