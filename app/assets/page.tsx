@@ -1,9 +1,9 @@
-import DashboardClient from './DashboardClient';
+import AssetsClient from './AssetsClient';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { getUser } from '@/utils/supabase/queries';
 
-export default async function Dashboard() {
+export default async function Assets() {
   const supabase = await createClient();
   const user = await getUser(supabase);
 
@@ -11,5 +11,5 @@ export default async function Dashboard() {
     return redirect('/signin');
   }
 
-  return <DashboardClient user={user} />;
+  return <AssetsClient user={user} />;
 }

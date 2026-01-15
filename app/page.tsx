@@ -16,9 +16,9 @@ export default async function HomePage() {
     getSubscription(supabase)
   ]);
 
-  // If user is authenticated, redirect to dashboard
+  // If user is authenticated, redirect to assets
   if (user) {
-    return redirect('/dashboard');
+    return redirect('/assets');
   }
 
   return (

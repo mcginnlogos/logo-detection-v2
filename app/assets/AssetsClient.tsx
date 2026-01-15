@@ -33,11 +33,11 @@ interface Asset {
   jobs: Job[];
 }
 
-interface DashboardClientProps {
+interface AssetsClientProps {
   user: any;
 }
 
-export default function DashboardClient({ user }: DashboardClientProps) {
+export default function AssetsClient({ user }: AssetsClientProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +45,7 @@ export default function DashboardClient({ user }: DashboardClientProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 12;
 
   const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
 

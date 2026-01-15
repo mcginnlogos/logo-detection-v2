@@ -25,9 +25,9 @@ export default function Sidebar({ user }: SidebarProps) {
 
   const menuItems = [
     {
-      href: '/dashboard',
+      href: '/assets',
       icon: LayoutDashboard,
-      label: 'Dashboard'
+      label: 'Assets'
     },
     {
       href: '/subscriptions',

@@ -52,7 +52,6 @@ export default async function RootLayout({ children }: PropsWithChildren) {
             </main>
           </div>
         )}
-        <Footer />
         <Suspense>
           <Toaster />
         </Suspense>
