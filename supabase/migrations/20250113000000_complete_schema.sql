@@ -136,9 +136,12 @@ CREATE TABLE IF NOT EXISTS public.files (
     s3_key TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('pending_upload', 'uploading', 'available', 'upload_failed', 'deleting', 'deleted', 'delete_failed')),
     error_message TEXT,
+    metadata JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+COMMENT ON COLUMN public.files.metadata IS 'Stores file-specific settings like frame_rate for videos';
 
 -- ============================================================================
 -- JOBS TABLE
@@ -205,6 +208,7 @@ CREATE INDEX IF NOT EXISTS files_name_idx ON public.files(name);
 CREATE INDEX IF NOT EXISTS files_s3_bucket_idx ON public.files(s3_bucket);
 CREATE INDEX IF NOT EXISTS files_s3_key_idx ON public.files(s3_key);
 CREATE INDEX IF NOT EXISTS files_status_idx ON public.files(status);
+CREATE INDEX IF NOT EXISTS files_metadata_idx ON public.files USING GIN (metadata);
 
 -- Jobs indexes
 CREATE INDEX IF NOT EXISTS jobs_user_id_idx ON public.jobs(user_id);

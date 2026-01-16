@@ -8,11 +8,23 @@ const supabase = createClient(
 export const handler = async (event) => {
   console.log('Job Status Updater received event:', JSON.stringify(event, null, 2));
   
-  const { jobId, status, action, bucket, s3Key, userId, filename, fileSize, fileId, errorMessage } = event;
+  const { jobId, status, action, bucket, s3Key, userId, filename, fileSize, fileId, errorMessage, frameRate } = event;
   
   try {
     // If action is 'create', create a new job record
     if (action === 'create') {
+      const jobMetadata = {
+        original_filename: filename,
+        file_size: fileSize,
+        s3_bucket: bucket,
+        s3_key: s3Key
+      };
+      
+      // Add frame rate to metadata if provided (for videos)
+      if (frameRate) {
+        jobMetadata.frame_rate = frameRate;
+      }
+      
       const { data: newJob, error: jobError } = await supabase
         .from('jobs')
         .insert({
@@ -20,12 +32,7 @@ export const handler = async (event) => {
           user_id: userId,
           job_type: 'image_processing',
           status: status || 'processing',
-          metadata: {
-            original_filename: filename,
-            file_size: fileSize,
-            s3_bucket: bucket,
-            s3_key: s3Key
-          }
+          metadata: jobMetadata
         })
         .select()
         .single();

@@ -115,12 +115,19 @@ export const handler = async (event) => {
       console.log(`Created new file record: ${fileRecord.id}`);
     }
     
+    // Extract frame rate from file metadata (for videos)
+    const frameRate = fileRecord.metadata?.frame_rate || null;
+    if (frameRate) {
+      console.log(`File has frame rate configured: ${frameRate} fps`);
+    }
+    
     return {
       ...event,  // Pass through all input fields including routeType
       statusCode: 200,
       message: 'File status updated successfully',
       fileId: fileRecord.id,
-      status: fileRecord.status
+      status: fileRecord.status,
+      frameRate: frameRate  // Pass frame rate downstream
     };
     
   } catch (error) {

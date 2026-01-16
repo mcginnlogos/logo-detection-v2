@@ -48,6 +48,10 @@ export default function AssetsClient({ user }: AssetsClientProps) {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+  const [showFrameRateModal, setShowFrameRateModal] = useState(false);
+  const [pendingVideoFiles, setPendingVideoFiles] = useState<File[]>([]);
+  const [pendingImageFiles, setPendingImageFiles] = useState<File[]>([]);
+  const [frameRate, setFrameRate] = useState(5); // Default 5 fps
 
   const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
 
@@ -231,7 +235,7 @@ export default function AssetsClient({ user }: AssetsClientProps) {
   }, [currentPage, processingAssets.length, paginatedLibraryAssets.length]);
 
   // Multipart upload function - returns the file data if successful
-  const uploadFileMultipart = async (file: File): Promise<{ fileId: string; fileName: string; fileSize: number; mimeType: string } | null> => {
+  const uploadFileMultipart = async (file: File, videoFrameRate?: number): Promise<{ fileId: string; fileName: string; fileSize: number; mimeType: string } | null> => {
     try {
       // Step 1: Initiate multipart upload
       const initiateResponse = await fetch('/api/files/initiate-upload', {
@@ -241,6 +245,7 @@ export default function AssetsClient({ user }: AssetsClientProps) {
           filename: file.name,
           fileSize: file.size,
           mimeType: file.type,
+          frameRate: videoFrameRate, // Pass frame rate for videos
         }),
       });
 
@@ -323,6 +328,25 @@ export default function AssetsClient({ user }: AssetsClientProps) {
   const uploadFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
+    // Separate videos and images
+    const videoFiles = files.filter(f => f.type.startsWith('video/'));
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+
+    // If there are videos, show frame rate modal and wait for user confirmation
+    if (videoFiles.length > 0) {
+      setPendingVideoFiles(videoFiles);
+      setPendingImageFiles(imageFiles); // Store images too, don't upload yet
+      setShowFrameRateModal(true);
+      return;
+    }
+
+    // If only images, upload immediately
+    if (imageFiles.length > 0) {
+      await processUpload(imageFiles, undefined);
+    }
+  };
+
+  const processUpload = async (files: File[], videoFrameRate?: number) => {
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -338,7 +362,8 @@ export default function AssetsClient({ user }: AssetsClientProps) {
 
       // Upload files in parallel
       const uploadPromises = files.map(async (file) => {
-        const uploadResult = await uploadFileMultipart(file);
+        const isVideo = file.type.startsWith('video/');
+        const uploadResult = await uploadFileMultipart(file, isVideo ? videoFrameRate : undefined);
         
         // If upload succeeded, add the file to state immediately
         if (uploadResult) {
@@ -758,6 +783,79 @@ export default function AssetsClient({ user }: AssetsClientProps) {
           </div>
         )}
       </main>
+
+      {/* Frame Rate Modal */}
+      {showFrameRateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full animate-fade-in">
+            <h3 className="text-xl font-semibold text-foreground mb-4">
+              Select Frame Rate
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Choose how many frames per second to extract from your video{pendingVideoFiles.length > 1 ? 's' : ''} for logo detection.
+              Higher frame rates provide more detailed analysis but take longer to process and consume additional credits.
+              {pendingImageFiles.length > 0 && (
+                <span className="block mt-2 font-medium">
+                  {pendingImageFiles.length} image{pendingImageFiles.length > 1 ? 's' : ''} will also be uploaded.
+                </span>
+              )}
+            </p>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Frame Rate: {frameRate} FPS
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="30"
+                  value={frameRate}
+                  onChange={(e) => setFrameRate(Number(e.target.value))}
+                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                  <span>1 FPS (Faster)</span>
+                  <span>30 FPS (Detailed)</span>
+                </div>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+                <p className="text-xs text-muted-foreground">
+                  <strong className="text-foreground">Recommended:</strong> 1-5 FPS for most videos. 
+                  Use 1-5 FPS for long videos or quick scans. Use 15-30 FPS for detailed frame-by-frame analysis.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowFrameRateModal(false);
+                  setPendingVideoFiles([]);
+                  setPendingImageFiles([]);
+                }}
+                className="flex-1 px-4 py-2 rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowFrameRateModal(false);
+                  // Upload all pending files (videos with frame rate, images without)
+                  const allFiles = [...pendingVideoFiles, ...pendingImageFiles];
+                  await processUpload(allFiles, frameRate);
+                  setPendingVideoFiles([]);
+                  setPendingImageFiles([]);
+                }}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+              >
+                Start Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

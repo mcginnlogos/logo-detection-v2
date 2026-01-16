@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { filename, fileSize, mimeType } = body;
+    const { filename, fileSize, mimeType, frameRate } = body;
 
     // Validate inputs
     if (!filename || !fileSize || !mimeType) {
@@ -25,6 +25,17 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required fields: filename, fileSize, mimeType' },
         { status: 400 }
       );
+    }
+
+    // Validate frame rate for videos (optional, but if provided must be valid)
+    const isVideo = mimeType.startsWith('video/');
+    if (isVideo && frameRate !== undefined) {
+      if (typeof frameRate !== 'number' || frameRate < 1 || frameRate > 30) {
+        return NextResponse.json(
+          { error: 'Frame rate must be between 1 and 30 FPS' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate file size
@@ -65,6 +76,7 @@ export async function POST(request: NextRequest) {
         s3_bucket: s3Bucket,
         s3_key: s3Key,
         status: 'uploading',
+        metadata: isVideo && frameRate ? { frame_rate: frameRate } : null,
       })
       .select()
       .single();

@@ -9,7 +9,19 @@ const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' })
 export const handler = async (event) => {
   console.log('Video Frame Extractor received event:', JSON.stringify(event, null, 2));
   
-  const { bucket, s3Key, userId, filename, fileId, frameRate = 1 } = event;
+  // Parse frameRate - it might come as string or number, default to 1 if not provided
+  let frameRate = 1;
+  if (event.frameRate) {
+    frameRate = typeof event.frameRate === 'string' ? parseFloat(event.frameRate) : event.frameRate;
+    // Validate frame rate is between 1 and 30
+    if (isNaN(frameRate) || frameRate < 1 || frameRate > 30) {
+      console.warn(`Invalid frame rate ${event.frameRate}, using default of 1 fps`);
+      frameRate = 1;
+    }
+  }
+  console.log(`Using frame rate: ${frameRate} fps`);
+  
+  const { bucket, s3Key, userId, filename, fileId } = event;
   
   const tmpDir = '/tmp/video-processing';
   const videoPath = join(tmpDir, 'input.mp4');
