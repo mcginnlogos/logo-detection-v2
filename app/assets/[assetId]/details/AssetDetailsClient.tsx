@@ -118,7 +118,7 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
     return null;
   };
 
-  // Get unique frames sorted by frame_index
+  // Get unique frames sorted by frame_index (for videos)
   const frames = allResults
     .filter(r => r.frame_index !== null)
     .sort((a, b) => (a.frame_index || 0) - (b.frame_index || 0))
@@ -131,10 +131,10 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
       return acc;
     }, [] as ProcessingJobResult[]);
 
-  // Get results for current frame
-  const currentFrameResults = allResults.filter(
-    r => r.frame_index === frames[currentFrameIndex]?.frame_index
-  );
+  // Get results for current frame (videos) or all results (images)
+  const currentFrameResults = isVideo 
+    ? allResults.filter(r => r.frame_index === frames[currentFrameIndex]?.frame_index)
+    : allResults; // For images, show all results
 
   // Get all logos from current frame results
   const currentFrameLogos: Array<{ logo: LogoDetection; index: number }> = [];
@@ -385,6 +385,23 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
 
                   {/* Bounding box toggle */}
                   <div className="mt-3 flex items-center justify-center">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showBoundingBoxes}
+                        onChange={(e) => setShowBoundingBoxes(e.target.checked)}
+                        className="w-4 h-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
+                      />
+                      <span className="text-sm text-muted-foreground">Show bounding boxes</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Bounding box toggle for images */}
+              {isImage && (
+                <div className="p-4 border-t border-border">
+                  <div className="flex items-center justify-center">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
