@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Upload, Film, Sparkles, FileVideo, Scan, Loader2 } from 'lucide-react';
+import { Upload, Film, Sparkles, FileVideo, Scan, Loader2, Eye } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 interface Job {
   id: string;
@@ -38,6 +39,7 @@ interface AssetsClientProps {
 }
 
 export default function AssetsClient({ user }: AssetsClientProps) {
+  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -657,29 +659,48 @@ export default function AssetsClient({ user }: AssetsClientProps) {
               <span className="text-sm text-muted-foreground">({libraryAssets.length} {libraryAssets.length === 1 ? 'asset' : 'assets'})</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {paginatedLibraryAssets.map((asset) => (
-                <div key={asset.id} className="group relative rounded-xl overflow-hidden bg-card border border-border hover:border-primary/50 transition-all cursor-pointer">
-                  <FilePreview asset={asset} url={previewUrls[asset.id]} />
-                  <div className="p-4">
-                    <p className="font-medium text-foreground truncate mb-1">{asset.original_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(asset.size / (1024 * 1024)).toFixed(2)} MB
-                    </p>
-                    {asset.jobs[0]?.status === 'completed' && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-green-500">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        <span>Completed</span>
+              {paginatedLibraryAssets.map((asset) => {
+                const hasCompletedJob = asset.jobs.some(job => job.status === 'completed');
+                
+                return (
+                  <div key={asset.id} className="group relative rounded-xl overflow-hidden bg-card border border-border hover:border-primary/50 transition-all">
+                    <FilePreview asset={asset} url={previewUrls[asset.id]} />
+                    <div className="p-4">
+                      <p className="font-medium text-foreground truncate mb-1">{asset.original_name}</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {(asset.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+                      
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          {asset.jobs[0]?.status === 'completed' && (
+                            <div className="flex items-center gap-1 text-xs text-green-500">
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                              <span>Completed</span>
+                            </div>
+                          )}
+                          {asset.jobs[0]?.status === 'failed' && (
+                            <div className="flex items-center gap-1 text-xs text-red-500">
+                              <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                              <span>Failed</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {hasCompletedJob && (
+                          <button
+                            onClick={() => router.push(`/assets/${asset.id}/details`)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-xs font-medium"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Results
+                          </button>
+                        )}
                       </div>
-                    )}
-                    {asset.jobs[0]?.status === 'failed' && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-red-500">
-                        <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        <span>Failed</span>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             
             {/* Pagination controls */}
