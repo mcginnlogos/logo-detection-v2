@@ -189,6 +189,8 @@ CREATE TABLE IF NOT EXISTS public.processing_job_results (
     processing_job_id UUID REFERENCES public.processing_jobs(id) ON DELETE CASCADE,
     result_type result_type NOT NULL,
     metadata JSONB,
+    frame_index INTEGER,
+    frame_timestamp DECIMAL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -221,6 +223,8 @@ CREATE INDEX IF NOT EXISTS processing_job_results_job_id_idx ON public.processin
 CREATE INDEX IF NOT EXISTS processing_job_results_file_id_idx ON public.processing_job_results(file_id);
 CREATE INDEX IF NOT EXISTS processing_job_results_processing_job_id_idx ON public.processing_job_results(processing_job_id);
 CREATE INDEX IF NOT EXISTS processing_job_results_result_type_idx ON public.processing_job_results(result_type);
+CREATE INDEX IF NOT EXISTS processing_job_results_frame_index_idx ON public.processing_job_results(frame_index);
+CREATE INDEX IF NOT EXISTS processing_job_results_frame_timestamp_idx ON public.processing_job_results(frame_timestamp);
 
 -- ============================================================================
 -- FUNCTIONS

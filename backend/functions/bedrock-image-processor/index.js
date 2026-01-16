@@ -112,7 +112,7 @@ async function processImageJob(jobData) {
     console.log(`Bedrock response received:`, JSON.stringify(bedrockResponse, null, 2));
     
     // 3. Save results to processing_job_results
-    await saveBedrockResults(jobId, processingJobRecord.id, fileId, bedrockResponse);
+    await saveBedrockResults(jobId, processingJobRecord.id, fileId, bedrockResponse, frameNumber, frameTimestamp);
     
     // 4. Update processing_job status to completed
     await updateProcessingJobStatus(processingJobRecord.id, 'completed');
@@ -175,7 +175,7 @@ async function updateProcessingJobStatus(processingJobId, status, errorMessage =
   console.log(`Updated processing job ${processingJobId} status to: ${status}`);
 }
 
-async function saveBedrockResults(jobId, processingJobId, fileId, bedrockResponse) {
+async function saveBedrockResults(jobId, processingJobId, fileId, bedrockResponse, frameIndex = null, frameTimestamp = null) {
   console.log(`Saving Bedrock results for job: ${jobId}`);
   
   try {
@@ -190,6 +190,15 @@ async function saveBedrockResults(jobId, processingJobId, fileId, bedrockRespons
         processed_at: new Date().toISOString()
       }
     };
+    
+    // Add frame metadata if provided
+    if (frameIndex !== null && frameIndex !== undefined) {
+      resultRecord.frame_index = frameIndex;
+    }
+    
+    if (frameTimestamp !== null && frameTimestamp !== undefined) {
+      resultRecord.frame_timestamp = frameTimestamp;
+    }
     
     const { error } = await supabase
       .from('processing_job_results')
