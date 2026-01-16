@@ -311,6 +311,8 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
                       src={fileUrl}
                       className="w-full h-full object-contain"
                       controls
+                      preload="metadata"
+                      playsInline
                     />
                     {/* Bounding boxes for videos */}
                     {showBoundingBoxes && currentFrameLogos.map(({ logo, index }) => (
