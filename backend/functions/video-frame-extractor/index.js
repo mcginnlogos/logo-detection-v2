@@ -43,7 +43,9 @@ export const handler = async (event) => {
     
     // 2. Extract frames using ffmpeg
     console.log(`Extracting frames at ${frameRate} fps`);
-    await extractFrames(videoPath, framesDir, frameRate);
+    const sourceFrameRate = await getVideoFrameRate(videoPath);
+    console.log(`Source video frame rate: ${sourceFrameRate} fps`);
+    await extractFrames(videoPath, framesDir, frameRate, sourceFrameRate);
     
     // 3. Upload frames to S3
     const frameFiles = readdirSync(framesDir).filter(f => f.endsWith('.jpg'));
@@ -99,14 +101,57 @@ export const handler = async (event) => {
   }
 };
 
-function extractFrames(videoPath, outputDir, frameRate) {
+function getVideoFrameRate(videoPath) {
+  return new Promise((resolve, reject) => {
+    const ffprobePath = process.env.FFPROBE_PATH || '/opt/bin/ffprobe';
+    
+    const args = [
+      '-v', 'error',
+      '-select_streams', 'v:0',
+      '-show_entries', 'stream=r_frame_rate',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      videoPath
+    ];
+    
+    const ffprobe = spawn(ffprobePath, args);
+    let output = '';
+    
+    ffprobe.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+    
+    ffprobe.on('close', (code) => {
+      if (code === 0) {
+        // Parse frame rate (e.g., "30/1" or "30000/1001")
+        const [num, den] = output.trim().split('/').map(Number);
+        const fps = num / den;
+        resolve(fps);
+      } else {
+        reject(new Error(`ffprobe failed with code ${code}`));
+      }
+    });
+    
+    ffprobe.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
+function extractFrames(videoPath, outputDir, frameRate, sourceFrameRate) {
   return new Promise((resolve, reject) => {
     // ffmpeg is available at /opt/bin/ffmpeg from the Lambda layer
     const ffmpegPath = process.env.FFMPEG_PATH || '/opt/bin/ffmpeg';
     
+    // Calculate how many source frames to skip between extractions
+    // For sourceFrameRate=30 and frameRate=1: skip every 30 frames
+    // For sourceFrameRate=60 and frameRate=2: skip every 30 frames
+    const skipFrames = Math.round(sourceFrameRate / frameRate);
+    
+    // Use select filter to extract frames at exact intervals
     const args = [
       '-i', videoPath,
-      '-vf', `fps=${frameRate}`,
+      '-vf', `select='not(mod(n\\,${skipFrames}))',setpts=N/FRAME_RATE/TB`,
+      '-vsync', 'vfr',
       '-q:v', '2',
       join(outputDir, 'frame_%04d.jpg')
     ];

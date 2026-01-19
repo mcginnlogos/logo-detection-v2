@@ -804,26 +804,27 @@ export default function AssetsClient({ user }: AssetsClientProps) {
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Frame Rate: {frameRate} FPS
+                  Frame Rate
                 </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="30"
+                <select
                   value={frameRate}
                   onChange={(e) => setFrameRate(Number(e.target.value))}
-                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>1 FPS (Faster)</span>
-                  <span>30 FPS (Detailed)</span>
-                </div>
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="0.5">0.5 FPS - 1 frame every 2 seconds (Very Sparse)</option>
+                  <option value="1">1 FPS - 1 frame per second (Recommended)</option>
+                  <option value="2">2 FPS - 1 frame every 0.5 seconds</option>
+                  <option value="5">5 FPS - 1 frame every 0.2 seconds (Detailed)</option>
+                  <option value="10">10 FPS - 1 frame every 0.1 seconds</option>
+                  <option value="15">15 FPS - High detail</option>
+                  <option value="30">30 FPS - Maximum detail (Expensive)</option>
+                </select>
               </div>
               
               <div className="p-3 rounded-lg bg-secondary/50 border border-border">
                 <p className="text-xs text-muted-foreground">
-                  <strong className="text-foreground">Recommended:</strong> 1-5 FPS for most videos. 
-                  Use 1-5 FPS for long videos or quick scans. Use 15-30 FPS for detailed frame-by-frame analysis.
+                  <strong className="text-foreground">Tip:</strong> 1 FPS works well for most videos. 
+                  Higher frame rates provide more detail but increase processing time and cost.
                 </p>
               </div>
             </div>
