@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import VideoAnalytics from '@/components/ui/VideoAnalytics';
+import ExportDropdown from '@/components/ui/ExportDropdown';
+import { calculateLogoPresence, LogoDetection as AnalyticsLogoDetection, exportToCSV, exportToJSON } from '@/utils/logo-analytics';
 
 interface ProcessingJobResult {
   id: string;
@@ -101,6 +104,7 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showBoundingBoxes, setShowBoundingBoxes] = useState(false);
+  const [selectedLogo, setSelectedLogo] = useState<string | null>(null);
 
   const isVideo = asset?.mime_type.startsWith('video/');
   const isImage = asset?.mime_type.startsWith('image/');
@@ -146,6 +150,145 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
       });
     }
   });
+
+  // Calculate logo analytics for videos
+  const frameGapTolerance = parseInt(process.env.NEXT_PUBLIC_LOGO_FRAME_GAP_TOLERANCE || '1', 10);
+  
+  const logoAnalytics = useMemo(() => {
+    if (!isVideo || allResults.length === 0) return null;
+
+    const detections: AnalyticsLogoDetection[] = [];
+    
+    allResults.forEach(result => {
+      const parsedData = parseResultData(result);
+      if (parsedData?.image.logos && result.frame_index !== null && result.frame_timestamp !== null) {
+        parsedData.image.logos.forEach(logo => {
+          detections.push({
+            id: logo.id,
+            name: logo.name,
+            confidence: logo.confidence,
+            frameIndex: result.frame_index!,
+            timestamp: Number(result.frame_timestamp),
+          });
+        });
+      }
+    });
+
+    const presences = calculateLogoPresence(detections, frameGapTolerance);
+    
+    // Calculate video duration: last frame timestamp + average frame spacing
+    const sortedResults = [...allResults].sort((a, b) => 
+      (a.frame_timestamp || 0) - (b.frame_timestamp || 0)
+    );
+    
+    let videoDuration = 0;
+    if (sortedResults.length > 0) {
+      const lastTimestamp = Number(sortedResults[sortedResults.length - 1].frame_timestamp || 0);
+      
+      // Calculate average frame spacing
+      let avgSpacing = 0.033; // Default 30fps
+      if (sortedResults.length > 1) {
+        const spacings: number[] = [];
+        for (let i = 1; i < sortedResults.length; i++) {
+          const timeDiff = Number(sortedResults[i].frame_timestamp || 0) - Number(sortedResults[i - 1].frame_timestamp || 0);
+          if (timeDiff > 0) {
+            spacings.push(timeDiff);
+          }
+        }
+        if (spacings.length > 0) {
+          avgSpacing = spacings.reduce((sum, s) => sum + s, 0) / spacings.length;
+        }
+      }
+      
+      videoDuration = lastTimestamp + avgSpacing;
+    }
+
+    return {
+      presences,
+      videoDuration,
+    };
+  }, [allResults, isVideo]);
+
+  const handleLogoClick = (logoName: string, timestamp: number) => {
+    setSelectedLogo(logoName);
+    
+    // Find the frame closest to this timestamp
+    const targetFrame = frames.findIndex(f => Number(f.frame_timestamp) >= timestamp);
+    if (targetFrame !== -1) {
+      setCurrentFrameIndex(targetFrame);
+    }
+    
+    // Seek video
+    if (videoRef.current) {
+      videoRef.current.currentTime = timestamp;
+    }
+  };
+
+  const handleExport = (format: 'csv' | 'json') => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    const baseFilename = asset?.original_name.replace(/\.[^/.]+$/, '') || 'export';
+    const filename = `${baseFilename}-logos-${timestamp}.${format}`;
+
+    if (isVideo && logoAnalytics) {
+      // Export video analytics
+      if (format === 'csv') {
+        exportToCSV(logoAnalytics.presences, filename);
+      } else {
+        exportToJSON(logoAnalytics.presences, filename);
+      }
+    } else if (isImage) {
+      // Export image logos
+      const logos = currentFrameLogos.map(({ logo }) => ({
+        name: logo.name,
+        confidence: logo.confidence,
+        locations: logo.locations,
+      }));
+
+      if (format === 'csv') {
+        const headers = ['Logo Name', 'Confidence', 'X Position', 'Y Position', 'Width', 'Height'];
+        const rows = logos.flatMap(logo =>
+          logo.locations.map(loc => [
+            logo.name,
+            (logo.confidence * 100).toFixed(1) + '%',
+            (loc.bounding_box.left * 100).toFixed(1) + '%',
+            (loc.bounding_box.top * 100).toFixed(1) + '%',
+            (loc.bounding_box.width * 100).toFixed(1) + '%',
+            (loc.bounding_box.height * 100).toFixed(1) + '%',
+          ])
+        );
+        const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        const data = {
+          filename: asset?.original_name,
+          totalLogos: logos.length,
+          logos: logos.map(logo => ({
+            name: logo.name,
+            confidence: logo.confidence,
+            locations: logo.locations.map(loc => loc.bounding_box),
+          })),
+        };
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    }
+  };
 
   // Fetch asset and results
   const fetchAssetAndResults = useCallback(async () => {
@@ -253,18 +396,23 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/assets')}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Assets
-          </button>
-          <h1 className="text-3xl font-bold text-foreground mb-2">{asset.original_name}</h1>
-          <p className="text-muted-foreground">
-            {(asset.size / (1024 * 1024)).toFixed(2)} MB • {asset.mime_type}
-          </p>
+        <div className="mb-8 flex flex-col sm:flex-row items-start justify-between gap-4">
+          <div>
+            <button
+              onClick={() => router.push('/assets')}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Assets
+            </button>
+            <h1 className="text-3xl font-bold text-foreground mb-2">{asset.original_name}</h1>
+            <p className="text-muted-foreground">
+              {(asset.size / (1024 * 1024)).toFixed(2)} MB • {asset.mime_type}
+            </p>
+          </div>
+          <div className="sm:mt-8">
+            <ExportDropdown onExport={handleExport} />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -420,8 +568,8 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
           </div>
 
           {/* Results panel */}
-          <div className="lg:col-span-1">
-            <div className="rounded-xl bg-card border border-border p-6 max-h-[calc(100vh-12rem)] overflow-y-auto">
+          <div className="lg:col-span-1 lg:self-start">
+            <div className="rounded-xl bg-card border border-border p-6 max-h-[600px] lg:max-h-[600px] overflow-y-auto">
               <h2 className="text-xl font-semibold text-foreground mb-4">Detection Results</h2>
               
               {currentFrameResults.length > 0 ? (
@@ -544,6 +692,19 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
             </div>
           </div>
         </div>
+
+        {/* Video Analytics Section */}
+        {isVideo && logoAnalytics && logoAnalytics.presences.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Video Analytics</h2>
+            <VideoAnalytics
+              logoPresences={logoAnalytics.presences}
+              videoDuration={logoAnalytics.videoDuration}
+              onLogoClick={handleLogoClick}
+              selectedLogo={selectedLogo}
+            />
+          </div>
+        )}
       </main>
     </div>
   );
