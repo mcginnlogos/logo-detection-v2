@@ -484,7 +484,7 @@ export default function AssetsClient({ user }: AssetsClientProps) {
           onMouseLeave={() => setIsHovered(false)}
         >
           <video
-            src={url}
+            src={`${url}#t=0.001`}
             className="w-full h-full object-cover"
             preload="metadata"
             muted

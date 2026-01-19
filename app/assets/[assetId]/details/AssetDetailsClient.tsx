@@ -456,7 +456,7 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
                   <div className="relative w-full h-full">
                     <video
                       ref={videoRef}
-                      src={fileUrl}
+                      src={`${fileUrl}#t=0.001`}
                       className="w-full h-full object-contain"
                       controls
                       preload="metadata"
