@@ -188,6 +188,33 @@
           "ResultPath": "$.error"
         }
       ],
+      "ResultPath": "$.completeResult",
+      "Next": "CleanupFrames"
+    },
+    
+    "CleanupFrames": {
+      "Type": "Task",
+      "Resource": "${FrameCleanupFunctionArn}",
+      "Parameters": {
+        "bucket.$": "$.bucket",
+        "userId.$": "$.userId",
+        "fileId.$": "$.fileResult.fileId"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Success",
+          "ResultPath": "$.cleanupError"
+        }
+      ],
       "Next": "Success"
     },
     

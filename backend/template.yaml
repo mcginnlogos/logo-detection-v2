@@ -189,6 +189,35 @@ Resources:
                 - logs:PutLogEvents
               Resource: '*'
 
+  # Frame Cleanup Lambda Function
+  FrameCleanupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'frame-cleanup-${EnvironmentName}'
+      CodeUri: functions/frame-cleanup/
+      Handler: index.handler
+      Description: Deletes processed video frames from S3 to reduce storage costs
+      Timeout: 30
+      MemorySize: 256
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: !GetAtt FileStorageBucket.Arn
+            - Effect: Allow
+              Action:
+                - s3:DeleteObject
+              Resource: 
+                - !Sub '${FileStorageBucket.Arn}/users/*/frames/*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
   # Bedrock Image Processor Lambda Function
   BedrockImageProcessorFunction:
     Type: AWS::Serverless::Function
@@ -300,6 +329,7 @@ Resources:
         FileStatusUpdaterFunctionArn: !GetAtt FileStatusUpdaterFunction.Arn
         JobStatusUpdaterFunctionArn: !GetAtt JobStatusUpdaterFunction.Arn
         VideoFrameExtractorFunctionArn: !GetAtt VideoFrameExtractorFunction.Arn
+        FrameCleanupFunctionArn: !GetAtt FrameCleanupFunction.Arn
         ImageProcessingQueueUrl: !Ref ImageProcessingQueue
       Type: STANDARD
       Policies:
@@ -309,6 +339,8 @@ Resources:
             FunctionName: !Ref JobStatusUpdaterFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref VideoFrameExtractorFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FrameCleanupFunction
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
