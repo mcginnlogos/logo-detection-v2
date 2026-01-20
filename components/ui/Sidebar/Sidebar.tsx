@@ -10,7 +10,12 @@ import {
   CreditCard, 
   LogOut,
   Scan,
-  Sparkles
+  Sparkles,
+  Code2,
+  Terminal,
+  Braces,
+  Server,
+  Key
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,6 +32,11 @@ export default function Sidebar({ user }: SidebarProps) {
       href: '/assets',
       icon: Scan,
       label: 'Assets'
+    },
+    {
+      href: '/dev',
+      icon: Code2,
+      label: 'API'
     }
   ];
 
