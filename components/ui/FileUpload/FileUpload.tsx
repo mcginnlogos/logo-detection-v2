@@ -247,7 +247,7 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
           ref={fileInputRef}
           type="file"
           multiple
-          accept={ALLOWED_FILE_EXTENSIONS.join(',')}
+          accept=".png,.jpg,.jpeg,.mp4,.mov,.mpg,.mpeg"
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -270,7 +270,7 @@ export default function FileUpload({ onUploadComplete }: FileUploadProps) {
               {isUploading ? 'Uploading files...' : 'Drop files here or click to browse'}
             </p>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-              Supports PNG, JPG, JPEG, WEBP, MOV, MP4, AVI, MKV, WEBM (max {maxSizeMB}MB each)
+              Supports PNG, JPG, JPEG, MP4, MOV, MPEG (max {maxSizeMB}MB each)
             </p>
             {isUploading && uploadProgress > 0 && (
               <div className="mt-3">

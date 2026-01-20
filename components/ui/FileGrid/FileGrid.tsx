@@ -263,13 +263,22 @@ export default function FileGrid({ refreshTrigger }: FileGridProps) {
                       className="max-w-full h-auto rounded-lg"
                     />
                   ) : isVideo(selectedFile.mime_type) ? (
-                    <video
-                      src={previewUrl}
-                      controls
-                      className="max-w-full h-auto rounded-lg"
-                    >
-                      Your browser does not support the video tag.
-                    </video>
+                    <>
+                      {(selectedFile.mime_type === 'video/mpeg') && (
+                        <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                          <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                            ⚠️ MPEG files cannot be previewed in the browser, but logo detection will work normally.
+                          </p>
+                        </div>
+                      )}
+                      <video
+                        src={previewUrl}
+                        controls
+                        className="max-w-full h-auto rounded-lg"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    </>
                   ) : (
                     <p className="text-zinc-500 dark:text-zinc-400">
                       Preview not available for this file type.

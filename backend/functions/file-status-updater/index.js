@@ -147,13 +147,10 @@ function getMimeTypeFromFilename(filename) {
     'jpg': 'image/jpeg',
     'jpeg': 'image/jpeg',
     'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'svg': 'image/svg+xml',
     'mp4': 'video/mp4',
     'mov': 'video/quicktime',
-    'avi': 'video/x-msvideo',
-    'webm': 'video/webm'
+    'mpg': 'video/mpeg',
+    'mpeg': 'video/mpeg'
   };
   
   return mimeTypes[extension] || 'application/octet-stream';

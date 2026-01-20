@@ -454,6 +454,13 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
                 )}
                 {fileUrl && isVideo && (
                   <div className="relative w-full h-full">
+                    {(asset?.mime_type === 'video/mpeg') && (
+                      <div className="absolute top-4 left-4 right-4 z-10 p-3 rounded-lg bg-yellow-500/90 border border-yellow-600">
+                        <p className="text-sm text-white font-medium">
+                          ⚠️ MPEG files cannot be played in the browser. Logo detection results are available below.
+                        </p>
+                      </div>
+                    )}
                     <video
                       ref={videoRef}
                       src={`${fileUrl}#t=0.001`}
@@ -463,7 +470,7 @@ export default function AssetDetailsClient({ user, assetId }: AssetDetailsClient
                       playsInline
                     />
                     {/* Bounding boxes for videos */}
-                    {showBoundingBoxes && currentFrameLogos.map(({ logo, index }) => (
+                    {showBoundingBoxes && currentFrameLogos.map(({ logo, index}) => (
                       logo.locations.map((location, locIdx) => (
                         <div
                           key={`${logo.id}-${locIdx}`}

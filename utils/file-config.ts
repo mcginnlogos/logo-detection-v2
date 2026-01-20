@@ -14,41 +14,33 @@ export const ALLOWED_FILE_TYPES = [
   'image/png',
   'image/jpg', 
   'image/jpeg',
-  'image/webp',
-  'video/mov',
-  'video/mp4',
-  'video/avi',
-  'video/x-msvideo',
-  'video/x-matroska',
-  'video/webm'
+  'video/mp4',                // MP4 - Most common
+  'video/mov',                // MOV - Apple/professional
+  'video/quicktime',          // MOV alternate MIME
+  'video/mpeg'                // MPEG/MPG - Broadcast standard
 ];
 
 export const ALLOWED_FILE_EXTENSIONS = [
   '.png',
   '.jpg', 
   '.jpeg',
-  '.webp',
-  '.mov',
   '.mp4',
-  '.avi',
-  '.mkv',
-  '.webm'
+  '.mov',
+  '.mpg',
+  '.mpeg'
 ];
 
 export const IMAGE_TYPES = [
   'image/png',
   'image/jpg', 
-  'image/jpeg',
-  'image/webp'
+  'image/jpeg'
 ];
 
 export const VIDEO_TYPES = [
-  'video/mov',
   'video/mp4',
-  'video/avi',
-  'video/x-msvideo',
-  'video/x-matroska',
-  'video/webm'
+  'video/mov',
+  'video/quicktime',
+  'video/mpeg'
 ];
 
 /**
@@ -63,6 +55,13 @@ export const isImageType = (mimeType: string): boolean => {
  */
 export const isVideoType = (mimeType: string): boolean => {
   return VIDEO_TYPES.includes(mimeType);
+};
+
+/**
+ * Check if video format is not supported by browsers
+ */
+export const isUnsupportedVideoFormat = (mimeType: string): boolean => {
+  return mimeType === 'video/mpeg';
 };
 
 /**

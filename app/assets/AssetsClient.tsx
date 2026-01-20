@@ -477,12 +477,22 @@ export default function AssetsClient({ user }: AssetsClientProps) {
     }
 
     if (isVideo) {
+      const isUnsupportedFormat = asset.mime_type === 'video/mpeg';
+      
       return (
         <div 
           className="aspect-video bg-secondary/50 relative overflow-hidden"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
+          {isUnsupportedFormat && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+              <div className="text-center p-4">
+                <p className="text-yellow-400 text-sm font-medium mb-1">⚠️ Preview Unavailable</p>
+                <p className="text-white text-xs">MPEG format not supported in browser</p>
+              </div>
+            </div>
+          )}
           <video
             src={`${url}#t=0.001`}
             className="w-full h-full object-cover"
@@ -492,7 +502,7 @@ export default function AssetsClient({ user }: AssetsClientProps) {
             playsInline
             ref={(video) => {
               if (video) {
-                if (isHovered) {
+                if (isHovered && !isUnsupportedFormat) {
                   video.play().catch(() => {});
                 } else {
                   video.pause();
@@ -576,7 +586,7 @@ export default function AssetsClient({ user }: AssetsClientProps) {
                   or <span className="text-primary underline underline-offset-4">browse files</span>
                 </p>
                 <p className="text-xs text-muted-foreground/60 mt-4">
-                  Supports MP4, MOV, AVI, WebM, PNG, JPG, JPEG • Max 500MB per file
+                  Supports MP4, MOV, MPEG, PNG, JPG, JPEG • Max 500MB per file
                 </p>
                 {isUploading && uploadProgress > 0 && (
                   <div className="mt-4">
