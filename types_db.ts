@@ -89,35 +89,44 @@ export interface Database {
         Row: {
           active: boolean | null
           currency: string | null
+          description: string | null
+          frame_limit: number | null
           id: string
           interval: Database["public"]["Enums"]["pricing_plan_interval"] | null
           interval_count: number | null
+          metadata: Json | null
           product_id: string | null
-          trial_period_days: number | null
           type: Database["public"]["Enums"]["pricing_type"] | null
           unit_amount: number | null
+          usage_type: string | null
         }
         Insert: {
           active?: boolean | null
           currency?: string | null
+          description?: string | null
+          frame_limit?: number | null
           id: string
           interval?: Database["public"]["Enums"]["pricing_plan_interval"] | null
           interval_count?: number | null
+          metadata?: Json | null
           product_id?: string | null
-          trial_period_days?: number | null
           type?: Database["public"]["Enums"]["pricing_type"] | null
           unit_amount?: number | null
+          usage_type?: string | null
         }
         Update: {
           active?: boolean | null
           currency?: string | null
+          description?: string | null
+          frame_limit?: number | null
           id?: string
           interval?: Database["public"]["Enums"]["pricing_plan_interval"] | null
           interval_count?: number | null
+          metadata?: Json | null
           product_id?: string | null
-          trial_period_days?: number | null
           type?: Database["public"]["Enums"]["pricing_type"] | null
           unit_amount?: number | null
+          usage_type?: string | null
         }
         Relationships: [
           {
@@ -170,8 +179,6 @@ export interface Database {
           price_id: string | null
           quantity: number | null
           status: Database["public"]["Enums"]["subscription_status"] | null
-          trial_end: string | null
-          trial_start: string | null
           user_id: string
         }
         Insert: {
@@ -187,8 +194,6 @@ export interface Database {
           price_id?: string | null
           quantity?: number | null
           status?: Database["public"]["Enums"]["subscription_status"] | null
-          trial_end?: string | null
-          trial_start?: string | null
           user_id: string
         }
         Update: {
@@ -204,8 +209,6 @@ export interface Database {
           price_id?: string | null
           quantity?: number | null
           status?: Database["public"]["Enums"]["subscription_status"] | null
-          trial_end?: string | null
-          trial_start?: string | null
           user_id?: string
         }
         Relationships: [
@@ -229,6 +232,7 @@ export interface Database {
         Row: {
           avatar_url: string | null
           billing_address: Json | null
+          free_tier_frames_used: number | null
           full_name: string | null
           id: string
           payment_method: Json | null
@@ -236,6 +240,7 @@ export interface Database {
         Insert: {
           avatar_url?: string | null
           billing_address?: Json | null
+          free_tier_frames_used?: number | null
           full_name?: string | null
           id: string
           payment_method?: Json | null
@@ -243,6 +248,7 @@ export interface Database {
         Update: {
           avatar_url?: string | null
           billing_address?: Json | null
+          free_tier_frames_used?: number | null
           full_name?: string | null
           id?: string
           payment_method?: Json | null

@@ -23,6 +23,12 @@ Parameters:
     Description: Supabase service role key
     Default: 'sb_secret_9my8NarLNjpEd3bH0ly99A_SfKOwsWi' # TODO REMOVE
     NoEcho: true
+  
+  StripeSecretKey:
+    Type: String
+    Description: Stripe secret key for usage tracking
+    Default: 'sk_test_51SnU58Jv10o9E2kn1uSaRUk7AepV1OJRS1RygfUkjogBYtZjl5EKRvKE17Tp0UiCuA9bzafHXNq2Vhj12umgPnPM00JwZGtpxF' # TODO REMOVE
+    NoEcho: true
 
 Globals:
   Function:
@@ -34,6 +40,7 @@ Globals:
         ENVIRONMENT: !Ref EnvironmentName
         SUPABASE_URL: !Ref SupabaseUrl
         SUPABASE_SERVICE_KEY: !Ref SupabaseServiceKey
+        STRIPE_SECRET_KEY: !Ref StripeSecretKey
 
 Resources:
   # Bedrock Data Automation Project (SYNC type for synchronous API)

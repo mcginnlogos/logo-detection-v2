@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     id UUID REFERENCES auth.users NOT NULL PRIMARY KEY,
     full_name TEXT,
     avatar_url TEXT,
+    free_tier_frames_used INTEGER DEFAULT 0,
     billing_address JSONB,
     payment_method JSONB
 );
@@ -95,7 +96,8 @@ CREATE TABLE IF NOT EXISTS public.prices (
     type pricing_type,
     interval pricing_plan_interval,
     interval_count INTEGER,
-    trial_period_days INTEGER,
+    usage_type TEXT,
+    frame_limit INTEGER,
     metadata JSONB
 );
 
@@ -116,9 +118,7 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
     current_period_end TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     ended_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
     cancel_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-    canceled_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-    trial_start TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-    trial_end TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+    canceled_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
 );
 
 -- ============================================================================
@@ -267,6 +267,19 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to increment free tier usage
+CREATE OR REPLACE FUNCTION increment_free_tier_usage(
+  user_id UUID,
+  frames INTEGER
+)
+RETURNS void AS $$
+BEGIN
+  UPDATE public.users
+  SET free_tier_frames_used = free_tier_frames_used + frames
+  WHERE id = user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
 -- TRIGGERS

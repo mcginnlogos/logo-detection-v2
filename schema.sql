@@ -129,10 +129,6 @@ create table subscriptions (
   cancel_at timestamp with time zone default timezone('utc'::text, now()),
   -- If the subscription has been canceled, the date of that cancellation. If the subscription was canceled with `cancel_at_period_end`, `canceled_at` will still reflect the date of the initial cancellation request, not the end of the subscription period when the subscription is automatically moved to a canceled state.
   canceled_at timestamp with time zone default timezone('utc'::text, now()),
-  -- If the subscription has a trial, the beginning of that trial.
-  trial_start timestamp with time zone default timezone('utc'::text, now()),
-  -- If the subscription has a trial, the end of that trial.
-  trial_end timestamp with time zone default timezone('utc'::text, now())
 );
 alter table subscriptions enable row level security;
 create policy "Can only view own subs data." on subscriptions for select using (auth.uid() = user_id);

@@ -7,9 +7,6 @@ import type { Database, Tables, TablesInsert } from '@/types_db';
 type Product = Tables<'products'>;
 type Price = Tables<'prices'>;
 
-// Change to control trial period length
-const TRIAL_PERIOD_DAYS = 0;
-
 // Note: supabaseAdmin uses the SERVICE_ROLE_KEY which you must only use in a secure server-side context
 // as it has admin privileges and overwrites RLS policies!
 const supabaseAdmin = createClient<Database>(
@@ -44,12 +41,17 @@ const upsertPriceRecord = async (
     id: price.id,
     product_id: typeof price.product === 'string' ? price.product : '',
     active: price.active,
+    description: price.nickname ?? null,
     currency: price.currency,
     type: price.type,
     unit_amount: price.unit_amount ?? null,
     interval: price.recurring?.interval ?? null,
     interval_count: price.recurring?.interval_count ?? null,
-    trial_period_days: price.recurring?.trial_period_days ?? TRIAL_PERIOD_DAYS
+    usage_type: price.recurring?.usage_type ?? null,
+    frame_limit: price.metadata?.frame_limit 
+      ? parseInt(price.metadata.frame_limit) 
+      : null,
+    metadata: price.metadata
   };
 
   const { error: upsertError } = await supabaseAdmin
@@ -228,6 +230,43 @@ const manageSubscriptionStatusChange = async (
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
     expand: ['default_payment_method']
   });
+  
+  // Add metered price if this is a new subscription and it doesn't have one
+  if (createAction) {
+    const basePriceId = subscription.items.data[0].price.id;
+    const hasMeteredItem = subscription.items.data.some(
+      item => item.price.recurring?.usage_type === 'metered'
+    );
+
+    if (!hasMeteredItem) {
+      // Get the metered price for this product
+      const { data: basePrice } = await supabaseAdmin
+        .from('prices')
+        .select('product_id')
+        .eq('id', basePriceId)
+        .single();
+
+      if (basePrice) {
+        const { data: meteredPrice } = await supabaseAdmin
+          .from('prices')
+          .select('id')
+          .eq('product_id', basePrice.product_id)
+          .eq('usage_type', 'metered')
+          .eq('active', true)
+          .single();
+
+        if (meteredPrice) {
+          // Add metered price to subscription
+          await stripe.subscriptionItems.create({
+            subscription: subscriptionId,
+            price: meteredPrice.id,
+          });
+          console.log(`Added metered price ${meteredPrice.id} to subscription ${subscriptionId}`);
+        }
+      }
+    }
+  }
+
   // Upsert the latest status of the subscription object.
   const subscriptionData: TablesInsert<'subscriptions'> = {
     id: subscription.id,
@@ -254,12 +293,6 @@ const manageSubscriptionStatusChange = async (
     created: toDateTime(subscription.created).toISOString(),
     ended_at: subscription.ended_at
       ? toDateTime(subscription.ended_at).toISOString()
-      : null,
-    trial_start: subscription.trial_start
-      ? toDateTime(subscription.trial_start).toISOString()
-      : null,
-    trial_end: subscription.trial_end
-      ? toDateTime(subscription.trial_end).toISOString()
       : null
   };
 

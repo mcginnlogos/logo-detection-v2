@@ -6,8 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createOrRetrieveCustomer } from '@/utils/supabase/admin';
 import {
   getURL,
-  getErrorRedirect,
-  calculateTrialEndUnixTimestamp
+  getErrorRedirect
 } from '@/utils/helpers';
 import { Tables } from '@/types_db';
 
@@ -64,17 +63,10 @@ export async function checkoutWithStripe(
       success_url: getURL(redirectPath)
     };
 
-    console.log(
-      'Trial end:',
-      calculateTrialEndUnixTimestamp(price.trial_period_days)
-    );
     if (price.type === 'recurring') {
       params = {
         ...params,
-        mode: 'subscription',
-        subscription_data: {
-          trial_end: calculateTrialEndUnixTimestamp(price.trial_period_days)
-        }
+        mode: 'subscription'
       };
     } else if (price.type === 'one_time') {
       params = {
@@ -152,7 +144,7 @@ export async function createStripePortal(currentPath: string) {
     try {
       const { url } = await stripe.billingPortal.sessions.create({
         customer,
-        return_url: getURL('/assets')
+        return_url: getURL('/subscriptions')
       });
       if (!url) {
         throw new Error('Could not create billing portal');
