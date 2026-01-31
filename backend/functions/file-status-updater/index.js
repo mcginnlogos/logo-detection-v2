@@ -115,6 +115,23 @@ export const handler = async (event) => {
       console.log(`Created new file record: ${fileRecord.id}`);
     }
     
+    // Check subscription status and increment free tier file usage if needed
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single();
+
+    const hasActiveSubscription = !!subscription;
+
+    if (!hasActiveSubscription) {
+      const { error } = await supabase.rpc('increment_free_tier_file_usage', {
+        user_id: userId
+      });
+      if (error) console.error('Error updating free tier file usage:', error);
+    }
+    
     // Extract frame rate from file metadata (for videos)
     const frameRate = fileRecord.metadata?.frame_rate || null;
     if (frameRate) {
@@ -127,7 +144,8 @@ export const handler = async (event) => {
       message: 'File status updated successfully',
       fileId: fileRecord.id,
       status: fileRecord.status,
-      frameRate: frameRate  // Pass frame rate downstream
+      frameRate: frameRate,  // Pass frame rate downstream
+      hasActiveSubscription: hasActiveSubscription  // Pass subscription status downstream
     };
     
   } catch (error) {

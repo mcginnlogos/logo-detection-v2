@@ -54,6 +54,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check free tier limits
+    const { data: subscription } = await (supabase
+      .from('subscriptions') as any)
+      .select('status')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .single();
+
+    if (!subscription) {
+      // Free tier user - check file limit
+      const { data: userData } = await (supabase
+        .from('users') as any)
+        .select('free_tier_files_used, free_tier_files_limit')
+        .eq('id', user.id)
+        .single();
+
+      const filesUsed = userData?.free_tier_files_used || 0;
+      const filesLimit = userData?.free_tier_files_limit || 1;
+
+      if (filesUsed >= filesLimit) {
+        return NextResponse.json(
+          { error: 'Free tier limit reached. Please upgrade to continue.' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Generate unique filename
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);

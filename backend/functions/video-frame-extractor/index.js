@@ -21,7 +21,7 @@ export const handler = async (event) => {
   }
   console.log(`Using frame rate: ${frameRate} fps`);
   
-  const { bucket, s3Key, userId, filename, fileId } = event;
+  const { bucket, s3Key, userId, filename, fileId, hasActiveSubscription } = event;
   
   const tmpDir = '/tmp/video-processing';
   const videoPath = join(tmpDir, 'input.mp4');
@@ -48,8 +48,17 @@ export const handler = async (event) => {
     await extractFrames(videoPath, framesDir, frameRate, sourceFrameRate);
     
     // 3. Upload frames to S3
-    const frameFiles = readdirSync(framesDir).filter(f => f.endsWith('.jpg'));
-    console.log(`Extracted ${frameFiles.length} frames, uploading to S3`);
+    let frameFiles = readdirSync(framesDir).filter(f => f.endsWith('.jpg'));
+    console.log(`Extracted ${frameFiles.length} frames`);
+    
+    // Limit frames for free tier users
+    const FREE_TIER_FRAME_LIMIT = 10;
+    if (!hasActiveSubscription && frameFiles.length > FREE_TIER_FRAME_LIMIT) {
+      console.log(`Free tier user - limiting to ${FREE_TIER_FRAME_LIMIT} frames`);
+      frameFiles = frameFiles.slice(0, FREE_TIER_FRAME_LIMIT);
+    }
+
+    console.log(`Uploading ${frameFiles.length} frames to S3`);
     
     const frames = [];
     for (let i = 0; i < frameFiles.length; i++) {

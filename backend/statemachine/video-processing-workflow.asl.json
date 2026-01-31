@@ -78,7 +78,8 @@
         "filename.$": "$.filename",
         "fileId.$": "$.fileResult.fileId",
         "jobId.$": "$.jobResult.jobId",
-        "frameRate.$": "$.fileResult.frameRate"
+        "frameRate.$": "$.fileResult.frameRate",
+        "hasActiveSubscription.$": "$.fileResult.hasActiveSubscription"
       },
       "Retry": [
         {

@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS public.users (
     id UUID REFERENCES auth.users NOT NULL PRIMARY KEY,
     full_name TEXT,
     avatar_url TEXT,
-    free_tier_frames_used INTEGER DEFAULT 0,
+    free_tier_files_used INTEGER DEFAULT 0,
+    free_tier_files_limit INTEGER DEFAULT 1,
     billing_address JSONB,
     payment_method JSONB
 );
@@ -268,15 +269,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to increment free tier usage
-CREATE OR REPLACE FUNCTION increment_free_tier_usage(
-  user_id UUID,
-  frames INTEGER
+-- Function to increment free tier file usage
+CREATE OR REPLACE FUNCTION increment_free_tier_file_usage(
+  user_id UUID
 )
 RETURNS void AS $$
 BEGIN
   UPDATE public.users
-  SET free_tier_frames_used = free_tier_frames_used + frames
+  SET free_tier_files_used = free_tier_files_used + 1
   WHERE id = user_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

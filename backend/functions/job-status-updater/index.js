@@ -19,12 +19,7 @@ async function reportFrameUsage(userId, framesProcessed, currentJobId) {
     .single();
 
   if (!subscription) {
-    // Free tier user
-    const { error } = await supabase.rpc('increment_free_tier_usage', {
-      user_id: userId,
-      frames: framesProcessed
-    });
-    if (error) console.error('Error updating free tier usage:', error);
+    // Free tier user - no frame tracking needed
     return;
   }
 

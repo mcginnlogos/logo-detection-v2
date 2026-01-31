@@ -23,13 +23,15 @@ export async function GET() {
       // Free tier user
       const { data: userData } = await supabase
         .from('users')
-        .select('free_tier_frames_used')
+        .select('free_tier_files_used, free_tier_files_limit')
         .eq('id', user.id)
         .single();
 
       return NextResponse.json({
-        framesUsed: userData?.free_tier_frames_used || 0,
-        frameLimit: 10,
+        framesUsed: 0,
+        frameLimit: 0,
+        filesUsed: userData?.free_tier_files_used || 0,
+        filesLimit: userData?.free_tier_files_limit || 1,
         overageFrames: 0,
         isFreeUser: true
       });
