@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/Toasts/toaster';
 import { PropsWithChildren, Suspense } from 'react';
 import { getURL } from '@/utils/helpers';
 import { createClient } from '@/utils/supabase/server';
+import { Analytics } from "@vercel/analytics/next"
 import 'styles/main.css';
 
 const title = 'Logo Detection Project';
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }: PropsWithChildren) {
         <Suspense>
           <Toaster />
         </Suspense>
+        <Analytics />
       </body>
     </html>
   );
