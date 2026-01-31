@@ -17,7 +17,7 @@ export async function GET() {
       .select('id, price_id, current_period_start')
       .eq('user_id', user.id)
       .eq('status', 'active')
-      .single();
+      .single() as { data: { id: string; price_id: string; current_period_start: string } | null };
 
     if (!subscription) {
       // Free tier user
@@ -25,7 +25,7 @@ export async function GET() {
         .from('users')
         .select('free_tier_files_used, free_tier_files_limit')
         .eq('id', user.id)
-        .single();
+        .single() as { data: { free_tier_files_used: number | null; free_tier_files_limit: number | null } | null };
 
       return NextResponse.json({
         framesUsed: 0,
@@ -42,7 +42,7 @@ export async function GET() {
       .from('prices')
       .select('product_id, frame_limit')
       .eq('id', subscription.price_id)
-      .single();
+      .single() as { data: { product_id: string | null; frame_limit: number | null } | null };
 
     if (!price) {
       return NextResponse.json({ error: 'Price not found' }, { status: 404 });

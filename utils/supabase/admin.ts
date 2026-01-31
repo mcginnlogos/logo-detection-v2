@@ -246,7 +246,7 @@ const manageSubscriptionStatusChange = async (
         .eq('id', basePriceId)
         .single();
 
-      if (basePrice) {
+      if (basePrice?.product_id) {
         const { data: meteredPrice } = await supabaseAdmin
           .from('prices')
           .select('id')
