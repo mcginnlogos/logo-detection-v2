@@ -21,7 +21,10 @@ export default async function SignIn() {
     <div className="flex justify-center items-center min-h-screen bg-background">
       <div className="flex flex-col justify-between max-w-lg p-3 m-auto w-80 animate-fade-in">
         <div className="flex flex-col items-center pb-12 gap-4">
-          <h1 className="text-5xl font-bold tracking-tight text-primary">logodetekt</h1>
+          <div className="flex items-center gap-3">
+            <img src="/icon.svg" alt="ld" className="w-12 h-12" />
+            <h1 className="text-5xl font-bold tracking-tight text-primary">logodetekt</h1>
+          </div>
         </div>
         <Card title="Sign In">
           <OauthSignIn />
