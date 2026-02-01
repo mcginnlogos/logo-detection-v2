@@ -60,16 +60,13 @@ export default function Sidebar({ user }: SidebarProps) {
         {/* Logo */}
         <div className="mb-8 px-3">
           <div className="flex items-center gap-3">
-            <div className="relative flex-shrink-0 w-9 flex justify-center">
-              <div className="p-2 rounded-xl gradient-accent">
-                <Scan className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-primary animate-float" />
+            <div className="flex-shrink-0 w-9 flex justify-center">
+              <img src="/icon.svg" alt="ld" className="w-8 h-8" />
             </div>
             <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
               <div className="whitespace-nowrap">
-                <h1 className="text-lg font-bold text-sidebar-foreground tracking-tight">
-                  Logo<span className="text-gradient">Detect</span>
+                <h1 className="text-lg font-bold text-primary tracking-tight">
+                  logodetekt
                 </h1>
                 <p className="text-[10px] text-muted-foreground">AI-Powered Analysis</p>
               </div>

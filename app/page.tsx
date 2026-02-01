@@ -32,11 +32,11 @@ export default async function HomePage() {
           </div>
           
           <h1 className="text-5xl font-extrabold text-foreground sm:text-6xl lg:text-7xl mb-6">
-            Detect Logos with <span className="text-gradient">AI Precision</span>
+            <span className="text-gradient">logodetekt</span>
           </h1>
           
           <p className="mt-6 max-w-2xl mx-auto text-xl text-muted-foreground">
-            Powerful AI-driven logo detection and analysis tools. 
+            AI-powered logo detection and analysis. 
             Upload videos or images and let our AI identify brand logos automatically.
           </p>
         </div>

@@ -9,8 +9,8 @@ import { createClient } from '@/utils/supabase/server';
 import { Analytics } from "@vercel/analytics/next"
 import 'styles/main.css';
 
-const title = 'Logo Detection Project';
-const description = 'AI-driven logo detection and analysis tools.';
+const title = 'logodetekt';
+const description = 'AI-powered logo detection and analysis.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(getURL()),
