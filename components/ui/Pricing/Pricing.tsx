@@ -1,7 +1,6 @@
 'use client';
 
 import Button from '@/components/ui/Button';
-import LogoCloud from '@/components/ui/LogoCloud';
 import type { Tables } from '@/types_db';
 import { getStripe } from '@/utils/stripe/client';
 import { checkoutWithStripe, createStripePortal } from '@/utils/stripe/server';
@@ -122,7 +121,6 @@ export default function Pricing({ user, products, subscription }: Props) {
           </a>
           .
         </p>
-        <LogoCloud />
       </div>
     );
   }
@@ -139,16 +137,8 @@ export default function Pricing({ user, products, subscription }: Props) {
 
     return (
       <div className="max-w-4xl mx-auto">
-        <div className="sm:flex sm:flex-col sm:align-center">
-          <h1 className="text-4xl font-extrabold text-foreground sm:text-center sm:text-6xl">
-            Your Subscription
-          </h1>
-          <p className="max-w-2xl m-auto mt-5 text-xl text-muted-foreground sm:text-center sm:text-2xl">
-            Manage your current plan and usage
-          </p>
-        </div>
 
-        <div className="mt-12 bg-card border border-border rounded-xl shadow-lg p-8">
+        <div className="mt-12 bg-card border-2 border-primary/30 rounded-xl shadow-lg p-8">
           <div className="flex justify-between items-start mb-6">
             <div>
               <h2 className="text-3xl font-bold text-foreground">{currentProduct?.name}</h2>
@@ -177,9 +167,9 @@ export default function Pricing({ user, products, subscription }: Props) {
                 </span>
               </div>
               {usageStats && (
-                <div className="w-full bg-secondary rounded-full h-2">
+                <div className="w-full bg-secondary rounded-full h-2.5">
                   <div 
-                    className="bg-primary h-2 rounded-full transition-all"
+                    className="bg-primary h-2.5 rounded-full transition-all"
                     style={{ width: `${Math.min((usageStats.framesUsed / usageStats.frameLimit) * 100, 100)}%` }}
                   />
                 </div>
@@ -226,12 +216,9 @@ export default function Pricing({ user, products, subscription }: Props) {
   return (
     <div>
       <div className="sm:flex sm:flex-col sm:align-center">
-        <h1 className="text-4xl font-extrabold text-foreground sm:text-center sm:text-6xl">
-          Pricing Plans
+        <h1 className="text-4xl font-extrabold sm:text-center sm:text-6xl">
+          Subscriptions
         </h1>
-        <p className="max-w-2xl m-auto mt-5 text-xl text-muted-foreground sm:text-center sm:text-2xl">
-          Choose the perfect plan for your logo detection needs.
-        </p>
         <div className="relative self-center mt-6 bg-secondary rounded-lg p-0.5 flex sm:mt-8 border border-border">
         {intervals.includes('month') && (
           <button
@@ -239,7 +226,7 @@ export default function Pricing({ user, products, subscription }: Props) {
             type="button"
             className={`${
               billingInterval === 'month'
-                ? 'relative w-1/2 bg-sidebar-accent border-border shadow-sm text-foreground'
+                ? 'relative w-1/2 bg-sidebar-accent border-2 border-primary shadow-sm text-foreground'
                 : 'ml-0.5 relative w-1/2 border border-transparent text-muted-foreground'
             } rounded-md m-1 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 focus:z-10 sm:w-auto sm:px-8 transition-all`}
           >
@@ -252,7 +239,7 @@ export default function Pricing({ user, products, subscription }: Props) {
             type="button"
             className={`${
               billingInterval === 'year'
-                ? 'relative w-1/2 bg-sidebar-accent border-border shadow-sm text-foreground'
+                ? 'relative w-1/2 bg-sidebar-accent border-2 border-primary shadow-sm text-foreground'
                 : 'ml-0.5 relative w-1/2 border border-transparent text-muted-foreground'
             } rounded-md m-1 py-2 text-sm font-medium whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50 focus:z-10 sm:w-auto sm:px-8 transition-all`}
           >
@@ -316,7 +303,6 @@ export default function Pricing({ user, products, subscription }: Props) {
           );
         })}
       </div>
-      <LogoCloud />
     </div>
   );
 }
