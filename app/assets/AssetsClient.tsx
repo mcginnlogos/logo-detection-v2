@@ -108,7 +108,7 @@ export default function AssetsClient({ user }: AssetsClientProps) {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       
       if (!currentUser) {
-        console.warn('No user found for realtime subscription');
+        console.warn('No user found for realtime subscription ');
         return null;
       }
 
